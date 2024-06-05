@@ -1,3 +1,6 @@
 # Build directories
 build-debug/
 build-release/
+
+# Directory with some stuff
+other/
