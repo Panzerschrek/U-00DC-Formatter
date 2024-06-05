@@ -8,14 +8,12 @@ import (
 func main() {
 	args := os.Args[1:]
 
-	fmt.Println("Ü formatter")
-
-	fmt.Println("Loading file: ", args[0])
 	file_contents := ReadFile(args[0])
 
-	fmt.Println("File contents: ", file_contents)
-
-	_ = splitProgramIntoLexems(file_contents)
+	lexems := splitProgramIntoLexems(file_contents)
+	for _, lexem := range lexems {
+		fmt.Println(lexem.text)
+	}
 }
 
 func ReadFile(s string) string {

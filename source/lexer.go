@@ -1,5 +1,9 @@
 package main
 
+import (
+	"unicode/utf8"
+)
+
 type Lexem struct {
 	t    LexemType
 	text string
@@ -109,39 +113,124 @@ func splitProgramIntoLexems(s string) []Lexem {
 
 	for len(s) > 0 {
 
-		// TODO - process identifiers, numbers, comments, etc.
-		
-		// Process fixed lexems.
-		if len(s) >= 3 { // Fixed lexems of length 3.
-			lexem_type := TextToLexem3(s[0:3])
-			if lexem_type != LexemTypeNone {
-				result = append(result, Lexem{text: s[0:3], t: lexem_type})
-				s = s[3:]
-				goto end_fixed_lexems_search
-			}
-		}
-		if len(s) >= 2 {  // Fixed lexems of length 2.
-			lexem_type := TextToLexem3(s[0:2])
-			if lexem_type != LexemTypeNone {
-				result = append(result, Lexem{text: s[0:2], t: lexem_type})
-				s = s[2:]
-				goto end_fixed_lexems_search
-			}
-		}
-		if len(s) >= 1 {  // Fixed lexems of length 1.
-			lexem_type := TextToLexem3(s[0:1])
-			if lexem_type != LexemTypeNone {
-				result = append(result, Lexem{text: s[0:1], t: lexem_type})
-				s = s[1:]
-				goto end_fixed_lexems_search
-			}
-		}
+		c, c_size := utf8.DecodeRuneInString(s)
 
-		// None of the fixed lexems
-		s = s[1:]
+		// TODO - parse numbers, strings, multiline comments
 
-	end_fixed_lexems_search:
+		if IsWhitespace(c) {
+
+			s = s[c_size:] // Skip whitespaces.
+
+		} else if c == '/' && len(s) > c_size && s[1] == '/' {
+
+			// Line comment
+			comment := Lexem{t: LexemTypeComment}
+			s_before := s
+
+			for len(s) > 0 {
+				c, c_size := utf8.DecodeRuneInString(s)
+				s = s[c_size:]
+				if IsNewline(c) {
+					break
+				}
+			}
+
+			comment.text = string(s_before[:len(s_before)-len(s)])
+			result = append(result, comment)
+
+		} else if IsIdentifierStartChar(c) {
+
+			result = append(result, ParseIdentifier(&s))
+
+		} else {
+			// Process fixed lexems.
+
+			if len(s) >= 3 { // Fixed lexems of length 3.
+				lexem_type := TextToLexem3(s[0:3])
+				if lexem_type != LexemTypeNone {
+					result = append(result, Lexem{text: s[0:3], t: lexem_type})
+					s = s[3:]
+					continue
+				}
+			}
+			if len(s) >= 2 { // Fixed lexems of length 2.
+				lexem_type := TextToLexem2(s[0:2])
+				if lexem_type != LexemTypeNone {
+					result = append(result, Lexem{text: s[0:2], t: lexem_type})
+					s = s[2:]
+					continue
+				}
+			}
+			if len(s) >= 1 { // Fixed lexems of length 1.
+				lexem_type := TextToLexem1(s[0:1])
+				if lexem_type != LexemTypeNone {
+					result = append(result, Lexem{text: s[0:1], t: lexem_type})
+					s = s[1:]
+					continue
+				}
+			}
+
+			// None of the fixed lexems.
+			// TODO - generate error
+			s = s[1:]
+		}
 	}
+
+	return result
+}
+
+func IsWhitespace(c rune) bool {
+	return c == ' ' || c == '\f' || c == '\n' || c == '\r' || c == '\t' || c == '\v' || c <= 0x1F || c == 0x7F
+}
+
+func IsNewline(c rune) bool {
+	// See https://en.wikipedia.org/wiki/Newline#Unicode.
+	return c == '\n' || // line feed
+		c == '\r' || // carriage return
+		c == '\f' || // form feed
+		c == '\v' || // vertical tab
+		c == 0x0085 || // Next line
+		c == 0x2028 || // line separator
+		c == 0x2029 // paragraph separator
+}
+
+func IsIdentifierStartChar(c rune) bool {
+	// HACK - manually define allowed "letters".
+	// TODO - use something, like symbol category from unicode.
+	return (c >= 'a' && c <= 'z') ||
+		(c >= 'A' && c <= 'Z') ||
+		(c >= 0x0400 && c <= 0x04FF) || // Cyrillic
+		(c >= 0x0500 && c <= 0x0527) || // Extended cyrillic
+		(c >= 0x00C0 && c <= 0x00D6) || // Additional latin symbols
+		(c >= 0x00D8 && c <= 0x00F6) || // Additional latin symbols
+		(c >= 0x00F8 && c <= 0x00FF) || // Additional latin symbols
+		(c >= 0x0100 && c <= 0x017F) || // Extended latin part A
+		(c >= 0x0180 && c <= 0x024F) // Extended latin part B
+}
+
+func IsIdentifierChar(c rune) bool {
+	return IsIdentifierStartChar(c) || IsNumberStartChar(c) || c == '_'
+}
+
+func IsNumberStartChar(c rune) bool {
+	return c >= '0' && c <= '9'
+}
+
+func ParseIdentifier(s *string) Lexem {
+	result := Lexem{t: LexemTypeIdentifier}
+
+	s_initial := *s
+
+	for len(*s) > 0 {
+		c, c_size := utf8.DecodeRuneInString(*s)
+		if !IsIdentifierChar(c) {
+			break
+		}
+
+		*s = (*s)[c_size:]
+	}
+
+	result.text = string(s_initial[:len(s_initial)-len(*s)])
 
 	return result
 }
