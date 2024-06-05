@@ -142,6 +142,10 @@ func splitProgramIntoLexems(s string) []Lexem {
 
 			result = append(result, ParseIdentifier(&s))
 
+		} else if c == '"' {
+
+			result = append(result, ParseString(&s))
+
 		} else {
 			// Process fixed lexems.
 
@@ -228,6 +232,32 @@ func ParseIdentifier(s *string) Lexem {
 		}
 
 		*s = (*s)[c_size:]
+	}
+
+	result.text = string(s_initial[:len(s_initial)-len(*s)])
+
+	return result
+}
+
+func ParseString(s *string) Lexem {
+	result := Lexem{t: LexemTypeString}
+
+	s_initial := *s
+
+	*s = (*s)[1:] // Skip initial "
+
+	for len(*s) > 0 {
+		c, c_size := utf8.DecodeRuneInString(*s)
+		if c == '\\' {
+			// TODO - check if escape sequence is correct.
+			*s = (*s)[2:]
+			continue
+		} else if c == '"' {
+			*s = (*s)[1:]
+			break
+		} else {
+			*s = (*s)[c_size:]
+		}
 	}
 
 	result.text = string(s_initial[:len(s_initial)-len(*s)])
