@@ -103,32 +103,70 @@ func ParseLexTree_r(lexems *[]Lexem, end_lexem_type LexemType) LexTreeNodeList {
 }
 
 func PrintLexTreeNodes(nodes LexTreeNodeList) {
-	for _, node := range nodes {
-		PrintLexTreeNode_r(0, &node)
-	}
+	var prev_was_newline bool = false
+	PrintLexTreeNodes_r(nodes, 0, &prev_was_newline)
 }
 
-func PrintLexTree(node *LexTreeNode) {
-	PrintLexTreeNode_r(0, node)
-}
+func PrintLexTreeNodes_r(nodes LexTreeNodeList, depth int, prev_was_newline *bool) {
 
-func PrintLexTreeNode_r(depth int, node *LexTreeNode) {
+	for i, node := range nodes {
 
-	if len(node.text) > 0 {
-		for i := 0; i < depth; i++ {
-			fmt.Print("\t")
+		if *prev_was_newline {
+			for i := 0; i < depth; i++ {
+				fmt.Print("\t")
+			}
 		}
-		fmt.Println(node.text)
-	}
 
-	for _, sub_node := range node.sub_elements {
-		PrintLexTreeNode_r(depth+1, &sub_node)
-	}
+		if node.sub_elements == nil {
+			if node.text == ";" {
+				// Always add newline after ";"
+				fmt.Print(node.text, "\n")
+				*prev_was_newline = true
+			} else {
+				fmt.Print(node.text, " ")
+				*prev_was_newline = false
+			}
 
-	if len(node.trailing_text) > 0 {
-		for i := 0; i < depth; i++ {
-			fmt.Print("\t")
+			if !*prev_was_newline && i > 0 && nodes[i-1].text == "import" {
+				// Add newlines after imports.
+				fmt.Print("\n")
+				*prev_was_newline = true
+			}
+
+			// TODO - add newlines after line comments.
+
+		} else {
+
+			// For now add newlines only before/after {}
+			if node.text == "{" {
+				fmt.Print("\n")
+				for i := 0; i < depth; i++ {
+					fmt.Print("\t")
+				}
+				fmt.Print(node.text)
+				fmt.Print("\n")
+				*prev_was_newline = true
+			} else {
+				fmt.Print(node.text, " ")
+			}
+
+			PrintLexTreeNodes_r(node.sub_elements, depth+1, prev_was_newline)
+
+			// For now add newlines only before/after {}
+			if node.trailing_text == "}" {
+				if !*prev_was_newline {
+					fmt.Print("\n")
+				}
+
+				for i := 0; i < depth; i++ {
+					fmt.Print("\t")
+				}
+				fmt.Print(node.trailing_text)
+				fmt.Print("\n")
+				*prev_was_newline = true
+			} else {
+				fmt.Print(node.trailing_text, " ")
+			}
 		}
-		fmt.Println(node.trailing_text)
 	}
 }

@@ -18,6 +18,7 @@ func main() {
 			fmt.Print(" ")
 		}
 	}
+	fmt.Print("\n")
 
 	lex_tree := BuildLexTree(lexems)
 
