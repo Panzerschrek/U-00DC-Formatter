@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"unicode/utf8"
 )
 
@@ -115,7 +116,7 @@ func splitProgramIntoLexems(s string) []Lexem {
 
 		c, c_size := utf8.DecodeRuneInString(s)
 
-		// TODO - parse numbers, strings, multiline comments
+		// TODO - parse multiline comments
 
 		if IsWhitespace(c) {
 
@@ -141,6 +142,10 @@ func splitProgramIntoLexems(s string) []Lexem {
 		} else if IsIdentifierStartChar(c) {
 
 			result = append(result, ParseIdentifier(&s))
+
+		} else if IsNumberStartChar(c) {
+
+			result = append(result, ParseNumber(&s))
 
 		} else if c == '"' {
 
@@ -221,7 +226,6 @@ func IsNumberStartChar(c rune) bool {
 }
 
 func ParseIdentifier(s *string) Lexem {
-	result := Lexem{t: LexemTypeIdentifier}
 
 	s_initial := *s
 
@@ -234,13 +238,120 @@ func ParseIdentifier(s *string) Lexem {
 		*s = (*s)[c_size:]
 	}
 
-	result.text = string(s_initial[:len(s_initial)-len(*s)])
+	return Lexem{t: LexemTypeIdentifier, text: string(s_initial[:len(s_initial)-len(*s)])}
+}
 
-	return result
+func ParseNumber(s *string) Lexem {
+
+	s_initial := *s
+
+	var number_func = func(c rune) int {
+		if c >= '0' && c <= '9' {
+			return int(c) - '0'
+		}
+
+		return -1
+	}
+
+	base := 10
+
+	if strings.HasPrefix(*s, "0b") {
+
+		base = 2
+
+		number_func = func(c rune) int {
+			if c >= '0' && c <= '1' {
+				return int(c) - '0'
+			}
+			return -1
+		}
+
+		*s = (*s)[2:]
+
+	} else if strings.HasPrefix(*s, "0o") {
+
+		base = 8
+
+		number_func = func(c rune) int {
+			if c >= '0' && c <= '7' {
+				return int(c) - '0'
+			}
+			return -1
+		}
+
+		*s = (*s)[2:]
+
+	} else if strings.HasPrefix(*s, "0x") {
+
+		base = 16
+
+		number_func = func(c rune) int {
+			if c >= '0' && c <= '9' {
+				return int(c) - '0'
+			}
+			if c >= 'a' && c <= 'f' {
+				return int(c) - 'a' + 10
+			}
+			if c >= 'A' && c <= 'F' {
+				return int(c) - 'a' + 10
+			}
+			return -1
+		}
+
+		*s = (*s)[2:]
+	}
+
+	// Parse integer part.
+	for len(*s) > 0 {
+		c, c_size := utf8.DecodeRuneInString(*s)
+		if number_func(c) < 0 {
+			break
+		}
+		*s = (*s)[c_size:]
+	}
+
+	if strings.HasPrefix(*s, ".") {
+		// Parse fractional part.
+		*s = (*s)[1:]
+
+		for len(*s) > 0 {
+			c, c_size := utf8.DecodeRuneInString(*s)
+			if number_func(c) < 0 {
+				break
+			}
+			*s = (*s)[c_size:]
+		}
+	}
+
+	if base == 10 && strings.HasPrefix(*s, "e") {
+		// Parse exponent
+		*s = (*s)[1:]
+
+		// Optional negative sign.
+		if strings.HasPrefix(*s, "-") {
+			*s = (*s)[1:]
+		}
+
+		// Exponent digits
+		for len(*s) > 0 {
+			c, c_size := utf8.DecodeRuneInString(*s)
+			if number_func(c) < 0 {
+				break
+			}
+			*s = (*s)[c_size:]
+		}
+	}
+
+	c, _ := utf8.DecodeRuneInString(*s)
+	if IsIdentifierStartChar(c) {
+		// Type suffix.
+		ParseIdentifier(s)
+	}
+
+	return Lexem{t: LexemTypeNumber, text: string(s_initial[:len(s_initial)-len(*s)])}
 }
 
 func ParseString(s *string) Lexem {
-	result := Lexem{t: LexemTypeString}
 
 	s_initial := *s
 
@@ -260,9 +371,7 @@ func ParseString(s *string) Lexem {
 		}
 	}
 
-	result.text = string(s_initial[:len(s_initial)-len(*s)])
-
-	return result
+	return Lexem{t: LexemTypeString, text: string(s_initial[:len(s_initial)-len(*s)])}
 }
 
 func TextToLexem1(s string) LexemType {
