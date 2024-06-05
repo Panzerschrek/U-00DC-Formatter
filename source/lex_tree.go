@@ -139,6 +139,8 @@ func PrintLexTreeNodes_r(nodes LexTreeNodeList, depth int, prev_was_newline *boo
 
 			} else {
 
+				// Add spaces between lexems.
+				// TODO - make this confugurable - depending on lexem types.
 				fmt.Print(node.lexem.text, " ")
 				*prev_was_newline = false
 			}
@@ -173,7 +175,19 @@ func PrintLexTreeNodes_r(nodes LexTreeNodeList, depth int, prev_was_newline *boo
 			// This prevents making "for" operator ugly.
 			subelements_semicolon_is_newline := node.lexem.t == LexemTypeBraceLeft
 
-			PrintLexTreeNodes_r(node.sub_elements, depth+1, prev_was_newline, subelements_semicolon_is_newline)
+			// Somewhat hacky namespaces detection.
+			// Assuming "{" follows directly after something like "namespace SomeName".
+			// TODO - skip also comments, newlines, etc. in this check. 
+			is_namespace := i >= 2 && nodes[i - 1].lexem.t == LexemTypeIdentifier && nodes[ i - 2 ].lexem.text == "namespace"
+
+			// For namespaces avoid adding extra intendation.
+			// TODO - make this behavior configurabe.
+			sub_elements_depth := depth + 1
+			if is_namespace {
+				sub_elements_depth -= 1
+			}
+
+			PrintLexTreeNodes_r(node.sub_elements, sub_elements_depth, prev_was_newline, subelements_semicolon_is_newline)
 
 			// For now add newlines only before/after {}
 			if node.trailing_lexem.t == LexemTypeBraceRight {
