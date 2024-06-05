@@ -14,6 +14,8 @@ func main() {
 	file_contents := ReadFile(args[0])
 
 	fmt.Println("File contents: ", file_contents)
+
+	_ = splitProgramIntoLexems(file_contents)
 }
 
 func ReadFile(s string) string {
