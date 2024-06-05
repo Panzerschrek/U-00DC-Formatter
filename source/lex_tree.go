@@ -104,10 +104,10 @@ func ParseLexTree_r(lexems *[]Lexem, end_lexem_type LexemType) LexTreeNodeList {
 
 func PrintLexTreeNodes(nodes LexTreeNodeList) {
 	var prev_was_newline bool = false
-	PrintLexTreeNodes_r(nodes, 0, &prev_was_newline)
+	PrintLexTreeNodes_r(nodes, 0, &prev_was_newline, true)
 }
 
-func PrintLexTreeNodes_r(nodes LexTreeNodeList, depth int, prev_was_newline *bool) {
+func PrintLexTreeNodes_r(nodes LexTreeNodeList, depth int, prev_was_newline *bool, semicolon_is_newline bool) {
 
 	for i, node := range nodes {
 
@@ -119,9 +119,15 @@ func PrintLexTreeNodes_r(nodes LexTreeNodeList, depth int, prev_was_newline *boo
 
 		if node.sub_elements == nil {
 			if node.text == ";" {
-				// Always add newline after ";"
-				fmt.Print(node.text, "\n")
-				*prev_was_newline = true
+				// Add newline after ";", if necessary
+				if semicolon_is_newline {
+
+					fmt.Print(node.text, "\n")
+					*prev_was_newline = true
+				} else {
+					fmt.Print(node.text, " ")
+					*prev_was_newline = false
+				}
 			} else {
 				fmt.Print(node.text, " ")
 				*prev_was_newline = false
@@ -150,7 +156,11 @@ func PrintLexTreeNodes_r(nodes LexTreeNodeList, depth int, prev_was_newline *boo
 				fmt.Print(node.text, " ")
 			}
 
-			PrintLexTreeNodes_r(node.sub_elements, depth+1, prev_was_newline)
+			// Insert unconditional newlines after semicolon only in blocks, not in (), [], <//>, etc.
+			// This prevents making "for" operator ugly.
+			subelements_semicolon_is_newline := node.text == "{"
+
+			PrintLexTreeNodes_r(node.sub_elements, depth+1, prev_was_newline, subelements_semicolon_is_newline)
 
 			// For now add newlines only before/after {}
 			if node.trailing_text == "}" {
