@@ -7,9 +7,9 @@ import (
 type LexTreeNodeList = []LexTreeNode
 
 type LexTreeNode struct {
-	text          string // Only for simple nodes
-	sub_elements  LexTreeNodeList
-	trailing_text string
+	lexem          Lexem
+	sub_elements   LexTreeNodeList
+	trailing_lexem Lexem
 }
 
 func BuildLexTree(lexems []Lexem) LexTreeNodeList {
@@ -31,71 +31,71 @@ func ParseLexTree_r(lexems *[]Lexem, end_lexem_type LexemType) LexTreeNodeList {
 
 		if lexem.t == LexemTypeBraceLeft {
 
-			node := LexTreeNode{text: lexem.text, sub_elements: ParseLexTree_r(lexems, LexemTypeBraceRight)}
+			node := LexTreeNode{lexem: *lexem, sub_elements: ParseLexTree_r(lexems, LexemTypeBraceRight)}
 
 			if !(len(*lexems) > 0 && (*lexems)[0].t == LexemTypeBraceRight) {
 				panic("non-matching }")
 			}
 
-			node.trailing_text = (*lexems)[0].text
+			node.trailing_lexem = (*lexems)[0]
 			*lexems = (*lexems)[1:]
 
 			result = append(result, node)
 
 		} else if lexem.t == LexemTypeBracketLeft {
 
-			node := LexTreeNode{text: lexem.text, sub_elements: ParseLexTree_r(lexems, LexemTypeBracketRight)}
+			node := LexTreeNode{lexem: *lexem, sub_elements: ParseLexTree_r(lexems, LexemTypeBracketRight)}
 
 			if !(len(*lexems) > 0 && (*lexems)[0].t == LexemTypeBracketRight) {
 				panic("non-matching )")
 			}
 
-			node.trailing_text = (*lexems)[0].text
+			node.trailing_lexem = (*lexems)[0]
 			*lexems = (*lexems)[1:]
 
 			result = append(result, node)
 
 		} else if lexem.t == LexemTypeSquareBracketLeft {
 
-			node := LexTreeNode{text: lexem.text, sub_elements: ParseLexTree_r(lexems, LexemTypeSquareBracketRight)}
+			node := LexTreeNode{lexem: *lexem, sub_elements: ParseLexTree_r(lexems, LexemTypeSquareBracketRight)}
 
 			if !(len(*lexems) > 0 && (*lexems)[0].t == LexemTypeSquareBracketRight) {
 				panic("non-matching ]")
 			}
 
-			node.trailing_text = (*lexems)[0].text
+			node.trailing_lexem = (*lexems)[0]
 			*lexems = (*lexems)[1:]
 
 			result = append(result, node)
 
 		} else if lexem.t == LexemTypeTemplateBracketLeft {
 
-			node := LexTreeNode{text: lexem.text, sub_elements: ParseLexTree_r(lexems, LexemTypeTemplateBracketRight)}
+			node := LexTreeNode{lexem: *lexem, sub_elements: ParseLexTree_r(lexems, LexemTypeTemplateBracketRight)}
 
 			if !(len(*lexems) > 0 && (*lexems)[0].t == LexemTypeTemplateBracketRight) {
 				panic("non-matching />")
 			}
 
-			node.trailing_text = (*lexems)[0].text
+			node.trailing_lexem = (*lexems)[0]
 			*lexems = (*lexems)[1:]
 
 			result = append(result, node)
 
 		} else if lexem.t == LexemTypeMacroBracketLeft {
 
-			node := LexTreeNode{text: lexem.text, sub_elements: ParseLexTree_r(lexems, LexemTypeMacroBracketRight)}
+			node := LexTreeNode{lexem: *lexem, sub_elements: ParseLexTree_r(lexems, LexemTypeMacroBracketRight)}
 
 			if !(len(*lexems) > 0 && (*lexems)[0].t == LexemTypeMacroBracketRight) {
 				panic("non-matching ?>")
 			}
 
-			node.trailing_text = (*lexems)[0].text
+			node.trailing_lexem = (*lexems)[0]
 			*lexems = (*lexems)[1:]
 
 			result = append(result, node)
 
 		} else {
-			result = append(result, LexTreeNode{text: lexem.text})
+			result = append(result, LexTreeNode{lexem: *lexem})
 		}
 	}
 
@@ -118,52 +118,66 @@ func PrintLexTreeNodes_r(nodes LexTreeNodeList, depth int, prev_was_newline *boo
 		}
 
 		if node.sub_elements == nil {
-			if node.text == ";" {
+			if node.lexem.t == LexemTypeSemicolon {
+
 				// Add newline after ";", if necessary
 				if semicolon_is_newline {
 
-					fmt.Print(node.text, "\n")
+					fmt.Print(node.lexem.text, "\n")
 					*prev_was_newline = true
+
 				} else {
-					fmt.Print(node.text, " ")
+
+					fmt.Print(node.lexem.text, " ")
 					*prev_was_newline = false
 				}
+
+			} else if node.lexem.t == LexemTypeLineComment {
+
+				fmt.Print(node.lexem.text, "\n")
+				*prev_was_newline = true
+
 			} else {
-				fmt.Print(node.text, " ")
+
+				fmt.Print(node.lexem.text, " ")
 				*prev_was_newline = false
 			}
 
-			if !*prev_was_newline && i > 0 && nodes[i-1].text == "import" {
+			if !*prev_was_newline && i > 0 && nodes[i-1].lexem.text == "import" {
 				// Add newlines after imports.
 				fmt.Print("\n")
 				*prev_was_newline = true
 			}
 
-			// TODO - add newlines after line comments.
-
 		} else {
 
 			// For now add newlines only before/after {}
-			if node.text == "{" {
+			if node.lexem.t == LexemTypeBraceLeft {
+
 				fmt.Print("\n")
+
 				for i := 0; i < depth; i++ {
 					fmt.Print("\t")
 				}
-				fmt.Print(node.text)
+
+				fmt.Print(node.lexem.text)
 				fmt.Print("\n")
 				*prev_was_newline = true
+
 			} else {
-				fmt.Print(node.text, " ")
+
+				fmt.Print(node.lexem.text, " ")
 			}
 
 			// Insert unconditional newlines after semicolon only in blocks, not in (), [], <//>, etc.
 			// This prevents making "for" operator ugly.
-			subelements_semicolon_is_newline := node.text == "{"
+			subelements_semicolon_is_newline := node.lexem.t == LexemTypeBraceLeft
 
 			PrintLexTreeNodes_r(node.sub_elements, depth+1, prev_was_newline, subelements_semicolon_is_newline)
 
 			// For now add newlines only before/after {}
-			if node.trailing_text == "}" {
+			if node.trailing_lexem.t == LexemTypeBraceRight {
+
 				if !*prev_was_newline {
 					fmt.Print("\n")
 				}
@@ -171,11 +185,14 @@ func PrintLexTreeNodes_r(nodes LexTreeNodeList, depth int, prev_was_newline *boo
 				for i := 0; i < depth; i++ {
 					fmt.Print("\t")
 				}
-				fmt.Print(node.trailing_text)
+
+				fmt.Print(node.trailing_lexem.text)
 				fmt.Print("\n")
 				*prev_was_newline = true
+
 			} else {
-				fmt.Print(node.trailing_text, " ")
+
+				fmt.Print(node.trailing_lexem.text, " ")
 			}
 		}
 	}

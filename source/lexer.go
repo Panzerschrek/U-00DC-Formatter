@@ -15,7 +15,7 @@ type LexemType byte
 const (
 	LexemTypeNone LexemType = iota
 
-	LexemTypeComment
+	LexemTypeLineComment
 
 	LexemTypeIdentifier
 	LexemTypeMacroIdentifier
@@ -127,15 +127,16 @@ func splitProgramIntoLexems(s string) []Lexem {
 		} else if c == '/' && len(s) > c_size && s[1] == '/' {
 
 			// Line comment
-			comment := Lexem{t: LexemTypeComment}
+			comment := Lexem{t: LexemTypeLineComment}
 			s_before := s
 
 			for len(s) > 0 {
 				c, c_size := utf8.DecodeRuneInString(s)
-				s = s[c_size:]
+
 				if IsNewline(c) {
 					break
 				}
+				s = s[c_size:]
 			}
 
 			comment.text = string(s_before[:len(s_before)-len(s)])
