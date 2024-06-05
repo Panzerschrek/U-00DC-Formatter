@@ -107,6 +107,8 @@ const (
 	LexemTypeCompletionDot
 	LexemTypeSignatureHelpBracketLeft
 	LexemTypeSignatureHelpComma
+
+	LexemTypeEndOfFile
 )
 
 func splitProgramIntoLexems(s string) []Lexem {
@@ -184,6 +186,8 @@ func splitProgramIntoLexems(s string) []Lexem {
 			s = s[1:]
 		}
 	}
+
+	result = append(result, Lexem{t: LexemTypeEndOfFile})
 
 	return result
 }

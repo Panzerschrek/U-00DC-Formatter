@@ -11,9 +11,17 @@ func main() {
 	file_contents := ReadFile(args[0])
 
 	lexems := splitProgramIntoLexems(file_contents)
-	for _, lexem := range lexems {
-		fmt.Println(lexem.text)
+
+	if true {
+		for _, lexem := range lexems {
+			fmt.Print(lexem.text)
+			fmt.Print(" ")
+		}
 	}
+
+	lex_tree := BuildLexTree(lexems)
+
+	PrintLexTreeNodes(lex_tree)
 }
 
 func ReadFile(s string) string {
