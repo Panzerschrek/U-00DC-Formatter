@@ -16,6 +16,7 @@ func BuildLexTree(lexems []Lexem) LexTreeNodeList {
 	return ParseLexTree_r(&lexems, LexemTypeEndOfFile)
 }
 
+// Parse until specified end of line.
 func ParseLexTree_r(lexems *[]Lexem, end_lexem_type LexemType) LexTreeNodeList {
 	result := make([]LexTreeNode, 0)
 
@@ -24,51 +25,76 @@ func ParseLexTree_r(lexems *[]Lexem, end_lexem_type LexemType) LexTreeNodeList {
 
 		if lexem.t == end_lexem_type {
 			break
-		} else if lexem.t == LexemTypeBraceLeft {
+		}
 
-			*lexems = (*lexems)[1:]
+		*lexems = (*lexems)[1:]
 
-			node := LexTreeNode{text: lexem.text}
-			node.sub_elements = ParseLexTree_r(lexems, LexemTypeBraceRight)
+		if lexem.t == LexemTypeBraceLeft {
 
-			if len(*lexems) > 0 {
-				trailing_lexem := &(*lexems)[0] // TODO - check it is valid
-				*lexems = (*lexems)[1:]
-				node.trailing_text = trailing_lexem.text
+			node := LexTreeNode{text: lexem.text, sub_elements: ParseLexTree_r(lexems, LexemTypeBraceRight)}
+
+			if !(len(*lexems) > 0 && (*lexems)[0].t == LexemTypeBraceRight) {
+				panic("non-matching }")
 			}
+
+			node.trailing_text = (*lexems)[0].text
+			*lexems = (*lexems)[1:]
 
 			result = append(result, node)
 
 		} else if lexem.t == LexemTypeBracketLeft {
-			*lexems = (*lexems)[1:]
 
-			node := LexTreeNode{text: lexem.text}
-			node.sub_elements = ParseLexTree_r(lexems, LexemTypeBracketRight)
+			node := LexTreeNode{text: lexem.text, sub_elements: ParseLexTree_r(lexems, LexemTypeBracketRight)}
 
-			if len(*lexems) > 0 {
-				trailing_lexem := &(*lexems)[0] // TODO - check it is valid
-				*lexems = (*lexems)[1:]
-				node.trailing_text = trailing_lexem.text
+			if !(len(*lexems) > 0 && (*lexems)[0].t == LexemTypeBracketRight) {
+				panic("non-matching )")
 			}
+
+			node.trailing_text = (*lexems)[0].text
+			*lexems = (*lexems)[1:]
 
 			result = append(result, node)
 
 		} else if lexem.t == LexemTypeSquareBracketLeft {
+
+			node := LexTreeNode{text: lexem.text, sub_elements: ParseLexTree_r(lexems, LexemTypeSquareBracketRight)}
+
+			if !(len(*lexems) > 0 && (*lexems)[0].t == LexemTypeSquareBracketRight) {
+				panic("non-matching ]")
+			}
+
+			node.trailing_text = (*lexems)[0].text
 			*lexems = (*lexems)[1:]
 
-			node := LexTreeNode{text: lexem.text}
-			node.sub_elements = ParseLexTree_r(lexems, LexemTypeSquareBracketRight)
+			result = append(result, node)
 
-			if len(*lexems) > 0 {
-				trailing_lexem := &(*lexems)[0] // TODO - check it is valid
-				*lexems = (*lexems)[1:]
-				node.trailing_text = trailing_lexem.text
+		} else if lexem.t == LexemTypeTemplateBracketLeft {
+
+			node := LexTreeNode{text: lexem.text, sub_elements: ParseLexTree_r(lexems, LexemTypeTemplateBracketRight)}
+
+			if !(len(*lexems) > 0 && (*lexems)[0].t == LexemTypeTemplateBracketRight) {
+				panic("non-matching />")
 			}
+
+			node.trailing_text = (*lexems)[0].text
+			*lexems = (*lexems)[1:]
+
+			result = append(result, node)
+
+		} else if lexem.t == LexemTypeMacroBracketLeft {
+
+			node := LexTreeNode{text: lexem.text, sub_elements: ParseLexTree_r(lexems, LexemTypeMacroBracketRight)}
+
+			if !(len(*lexems) > 0 && (*lexems)[0].t == LexemTypeMacroBracketRight) {
+				panic("non-matching ?>")
+			}
+
+			node.trailing_text = (*lexems)[0].text
+			*lexems = (*lexems)[1:]
 
 			result = append(result, node)
 
 		} else {
-			*lexems = (*lexems)[1:]
 			result = append(result, LexTreeNode{text: lexem.text})
 		}
 	}
