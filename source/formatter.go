@@ -20,7 +20,10 @@ func main() {
 	}
 	fmt.Print("\n")
 
-	lex_tree := BuildLexTree(lexems)
+	lex_tree, err := BuildLexTree(lexems)
+	if err != nil {
+		panic(err)
+	}
 
 	options := GetDefaultFormattingOptions()
 	text_formatted := PrintLexTreeNodes(lex_tree, &options)

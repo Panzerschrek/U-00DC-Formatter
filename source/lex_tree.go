@@ -1,5 +1,9 @@
 package main
 
+import (
+	"errors"
+)
+
 // Do not perform proper syntax analysis.
 // It's not possible due to complication with macros.
 // Build simple tree structure instead - where lexems inside paired symbols ( (), [], {}, <//>, <??>) are grouped together.
@@ -12,12 +16,12 @@ type LexTreeNode struct {
 	trailing_lexem Lexem
 }
 
-func BuildLexTree(lexems []Lexem) LexTreeNodeList {
+func BuildLexTree(lexems []Lexem) (LexTreeNodeList, error) {
 	return ParseLexTree_r(&lexems, LexemTypeEndOfFile)
 }
 
 // Parse until specified end lexem.
-func ParseLexTree_r(lexems *[]Lexem, end_lexem_type LexemType) LexTreeNodeList {
+func ParseLexTree_r(lexems *[]Lexem, end_lexem_type LexemType) (LexTreeNodeList, error) {
 	result := make([]LexTreeNode, 0)
 
 	for len(*lexems) > 0 {
@@ -31,10 +35,15 @@ func ParseLexTree_r(lexems *[]Lexem, end_lexem_type LexemType) LexTreeNodeList {
 
 		if lexem.t == LexemTypeBraceLeft {
 
-			node := LexTreeNode{lexem: *lexem, sub_elements: ParseLexTree_r(lexems, LexemTypeBraceRight)}
+			sub_elements, err := ParseLexTree_r(lexems, LexemTypeBraceRight)
+			if err != nil {
+				return nil, err
+			}
+
+			node := LexTreeNode{lexem: *lexem, sub_elements: sub_elements}
 
 			if !(len(*lexems) > 0 && (*lexems)[0].t == LexemTypeBraceRight) {
-				panic("non-matching }")
+				return nil, errors.New("non-matching }")
 			}
 
 			node.trailing_lexem = (*lexems)[0]
@@ -44,10 +53,15 @@ func ParseLexTree_r(lexems *[]Lexem, end_lexem_type LexemType) LexTreeNodeList {
 
 		} else if lexem.t == LexemTypeBracketLeft {
 
-			node := LexTreeNode{lexem: *lexem, sub_elements: ParseLexTree_r(lexems, LexemTypeBracketRight)}
+			sub_elements, err := ParseLexTree_r(lexems, LexemTypeBracketRight)
+			if err != nil {
+				return nil, err
+			}
+
+			node := LexTreeNode{lexem: *lexem, sub_elements: sub_elements}
 
 			if !(len(*lexems) > 0 && (*lexems)[0].t == LexemTypeBracketRight) {
-				panic("non-matching )")
+				return nil, errors.New("non-matching )")
 			}
 
 			node.trailing_lexem = (*lexems)[0]
@@ -57,10 +71,15 @@ func ParseLexTree_r(lexems *[]Lexem, end_lexem_type LexemType) LexTreeNodeList {
 
 		} else if lexem.t == LexemTypeSquareBracketLeft {
 
-			node := LexTreeNode{lexem: *lexem, sub_elements: ParseLexTree_r(lexems, LexemTypeSquareBracketRight)}
+			sub_elements, err := ParseLexTree_r(lexems, LexemTypeSquareBracketRight)
+			if err != nil {
+				return nil, err
+			}
+
+			node := LexTreeNode{lexem: *lexem, sub_elements: sub_elements}
 
 			if !(len(*lexems) > 0 && (*lexems)[0].t == LexemTypeSquareBracketRight) {
-				panic("non-matching ]")
+				return nil, errors.New("non-matching ]")
 			}
 
 			node.trailing_lexem = (*lexems)[0]
@@ -70,10 +89,15 @@ func ParseLexTree_r(lexems *[]Lexem, end_lexem_type LexemType) LexTreeNodeList {
 
 		} else if lexem.t == LexemTypeTemplateBracketLeft {
 
-			node := LexTreeNode{lexem: *lexem, sub_elements: ParseLexTree_r(lexems, LexemTypeTemplateBracketRight)}
+			sub_elements, err := ParseLexTree_r(lexems, LexemTypeTemplateBracketRight)
+			if err != nil {
+				return nil, err
+			}
+
+			node := LexTreeNode{lexem: *lexem, sub_elements: sub_elements}
 
 			if !(len(*lexems) > 0 && (*lexems)[0].t == LexemTypeTemplateBracketRight) {
-				panic("non-matching />")
+				return nil, errors.New("non-matching />")
 			}
 
 			node.trailing_lexem = (*lexems)[0]
@@ -83,10 +107,15 @@ func ParseLexTree_r(lexems *[]Lexem, end_lexem_type LexemType) LexTreeNodeList {
 
 		} else if lexem.t == LexemTypeMacroBracketLeft {
 
-			node := LexTreeNode{lexem: *lexem, sub_elements: ParseLexTree_r(lexems, LexemTypeMacroBracketRight)}
+			sub_elements, err := ParseLexTree_r(lexems, LexemTypeMacroBracketRight)
+			if err != nil {
+				return nil, err
+			}
+
+			node := LexTreeNode{lexem: *lexem, sub_elements: sub_elements}
 
 			if !(len(*lexems) > 0 && (*lexems)[0].t == LexemTypeMacroBracketRight) {
-				panic("non-matching ?>")
+				return nil, errors.New("non-matching ?>")
 			}
 
 			node.trailing_lexem = (*lexems)[0]
@@ -99,5 +128,5 @@ func ParseLexTree_r(lexems *[]Lexem, end_lexem_type LexemType) LexTreeNodeList {
 		}
 	}
 
-	return result
+	return result, nil
 }
