@@ -141,7 +141,6 @@ func PrintLexTreeNodes_r(nodes LexTreeNodeList, out *strings.Builder, depth int,
 				} else {
 
 					out.WriteString(node.lexem.text)
-					out.WriteString(" ")
 					*prev_was_newline = false
 				}
 
