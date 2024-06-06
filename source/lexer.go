@@ -101,13 +101,6 @@ const (
 
 	LexemTypeEllipsis // ...
 
-	// Special kind of lexems, that can be created only manually (and not parsed).
-	LexemTypeCompletionIdentifier
-	LexemTypeCompletionScope
-	LexemTypeCompletionDot
-	LexemTypeSignatureHelpBracketLeft
-	LexemTypeSignatureHelpComma
-
 	LexemTypeEndOfFile
 )
 
