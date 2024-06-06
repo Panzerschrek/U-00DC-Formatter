@@ -190,6 +190,9 @@ func PrintLexTreeNodes_r(nodes LexTreeNodeList, depth int, prev_was_newline *boo
 			// TODO - skip also comments, newlines, etc. in this check.
 			is_namespace := i >= 2 && nodes[i-1].lexem.t == LexemTypeIdentifier && nodes[i-2].lexem.text == "namespace"
 
+			// Hacky template declaration detection.
+			is_template_declaration := node.lexem.t == LexemTypeTemplateBracketLeft && i >= 1 && nodes[i-1].lexem.text == "template"
+
 			// For namespaces avoid adding extra intendation.
 			// TODO - make this behavior configurabe.
 			sub_elements_depth := depth + 1
@@ -221,6 +224,15 @@ func PrintLexTreeNodes_r(nodes LexTreeNodeList, depth int, prev_was_newline *boo
 					fmt.Print(" ")
 				}
 				fmt.Print(node.trailing_lexem.text)
+
+			} else if node.trailing_lexem.t == LexemTypeTemplateBracketRight {
+
+				fmt.Print(node.trailing_lexem.text)
+
+				if is_template_declaration {
+					fmt.Print("\n")
+					*prev_was_newline = true
+				}
 
 			} else {
 
