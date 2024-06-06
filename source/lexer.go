@@ -2,6 +2,7 @@ package main
 
 import (
 	"strings"
+	"fmt"
 	"unicode/utf8"
 )
 
@@ -104,7 +105,7 @@ const (
 	LexemTypeEndOfFile
 )
 
-func SplitProgramIntoLexems(s string) []Lexem {
+func SplitProgramIntoLexems(s string) ([]Lexem, error) {
 	result := make([]Lexem, 0)
 
 	for len(s) > 0 {
@@ -176,14 +177,14 @@ func SplitProgramIntoLexems(s string) []Lexem {
 			}
 
 			// None of the fixed lexems.
-			// TODO - generate error
-			s = s[1:]
+			// TODO - print line number.
+			return nil, fmt.Errorf("Unexpected character with code %d", int(c))
 		}
 	}
 
 	result = append(result, Lexem{t: LexemTypeEndOfFile})
 
-	return result
+	return result, nil
 }
 
 func IsWhitespace(c rune) bool {
