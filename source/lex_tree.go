@@ -102,14 +102,20 @@ func ParseLexTree_r(lexems *[]Lexem, end_lexem_type LexemType) LexTreeNodeList {
 	return result
 }
 
-func PrintLexTreeNodes(nodes LexTreeNodeList) string {
+func PrintLexTreeNodes(nodes LexTreeNodeList, options *FormattingOptions) string {
 	var prev_was_newline bool = false
 	builder := strings.Builder{}
-	PrintLexTreeNodes_r(nodes, &builder, 0, &prev_was_newline, true)
+	PrintLexTreeNodes_r(nodes, options, &builder, 0, &prev_was_newline, true)
 	return builder.String()
 }
 
-func PrintLexTreeNodes_r(nodes LexTreeNodeList, out *strings.Builder, depth int, prev_was_newline *bool, semicolon_is_newline bool) {
+func PrintLexTreeNodes_r(
+	nodes LexTreeNodeList,
+	options *FormattingOptions,
+	out *strings.Builder,
+	depth int,
+	prev_was_newline *bool,
+	semicolon_is_newline bool) {
 
 	for i, node := range nodes {
 
@@ -213,7 +219,13 @@ func PrintLexTreeNodes_r(nodes LexTreeNodeList, out *strings.Builder, depth int,
 				sub_elements_depth -= 1
 			}
 
-			PrintLexTreeNodes_r(node.sub_elements, out, sub_elements_depth, prev_was_newline, subelements_semicolon_is_newline)
+			PrintLexTreeNodes_r(
+				node.sub_elements,
+				options,
+				out,
+				sub_elements_depth,
+				prev_was_newline,
+				subelements_semicolon_is_newline)
 
 			// For now add newlines only before/after {}
 			if node.trailing_lexem.t == LexemTypeBraceRight {

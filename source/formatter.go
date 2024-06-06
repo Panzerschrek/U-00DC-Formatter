@@ -22,7 +22,8 @@ func main() {
 
 	lex_tree := BuildLexTree(lexems)
 
-	text_formatted := PrintLexTreeNodes(lex_tree)
+	options := GetDefaultFormattingOptions()
+	text_formatted := PrintLexTreeNodes(lex_tree, &options)
 	fmt.Print(text_formatted)
 }
 
