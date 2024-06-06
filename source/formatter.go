@@ -22,7 +22,8 @@ func main() {
 
 	lex_tree := BuildLexTree(lexems)
 
-	PrintLexTreeNodes(lex_tree)
+	text_formatted := PrintLexTreeNodes(lex_tree)
+	fmt.Print(text_formatted)
 }
 
 func ReadFile(s string) string {

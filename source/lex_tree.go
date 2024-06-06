@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"strings"
 )
 
 type LexTreeNodeList = []LexTreeNode
@@ -102,18 +102,20 @@ func ParseLexTree_r(lexems *[]Lexem, end_lexem_type LexemType) LexTreeNodeList {
 	return result
 }
 
-func PrintLexTreeNodes(nodes LexTreeNodeList) {
+func PrintLexTreeNodes(nodes LexTreeNodeList) string {
 	var prev_was_newline bool = false
-	PrintLexTreeNodes_r(nodes, 0, &prev_was_newline, true)
+	builder := strings.Builder{}
+	PrintLexTreeNodes_r(nodes, &builder, 0, &prev_was_newline, true)
+	return builder.String()
 }
 
-func PrintLexTreeNodes_r(nodes LexTreeNodeList, depth int, prev_was_newline *bool, semicolon_is_newline bool) {
+func PrintLexTreeNodes_r(nodes LexTreeNodeList, out *strings.Builder, depth int, prev_was_newline *bool, semicolon_is_newline bool) {
 
 	for i, node := range nodes {
 
 		if *prev_was_newline {
 			for i := 0; i < depth; i++ {
-				fmt.Print("\t")
+				out.WriteString("\t")
 			}
 		}
 
@@ -123,33 +125,36 @@ func PrintLexTreeNodes_r(nodes LexTreeNodeList, depth int, prev_was_newline *boo
 				// Add newline after ";", if necessary
 				if semicolon_is_newline {
 
-					fmt.Print(node.lexem.text, "\n")
+					out.WriteString(node.lexem.text)
+					out.WriteString("\n")
 					*prev_was_newline = true
 
 				} else {
 
-					fmt.Print(node.lexem.text, " ")
+					out.WriteString(node.lexem.text)
+					out.WriteString(" ")
 					*prev_was_newline = false
 				}
 
 			} else if node.lexem.t == LexemTypeLineComment {
 
-				fmt.Print(node.lexem.text, "\n")
+				out.WriteString(node.lexem.text)
+				out.WriteString("\n")
 				*prev_was_newline = true
 
 			} else {
 
 				if !*prev_was_newline && i > 0 && WhitespaceIsNeeded(&nodes[i-1].lexem, &node.lexem) {
-					fmt.Print(" ")
+					out.WriteString(" ")
 				}
 
-				fmt.Print(node.lexem.text)
+				out.WriteString(node.lexem.text)
 				*prev_was_newline = false
 			}
 
 			if !*prev_was_newline && i > 0 && nodes[i-1].lexem.text == "import" {
 				// Add newlines after imports.
-				fmt.Print("\n")
+				out.WriteString("\n")
 				*prev_was_newline = true
 			}
 
@@ -158,27 +163,27 @@ func PrintLexTreeNodes_r(nodes LexTreeNodeList, depth int, prev_was_newline *boo
 			// For now add newlines only before/after {}
 			if node.lexem.t == LexemTypeBraceLeft {
 
-				fmt.Print("\n")
+				out.WriteString("\n")
 
 				for i := 0; i < depth; i++ {
-					fmt.Print("\t")
+					out.WriteString("\t")
 				}
 
-				fmt.Print(node.lexem.text)
-				fmt.Print("\n")
+				out.WriteString(node.lexem.text)
+				out.WriteString("\n")
 				*prev_was_newline = true
 
 			} else if node.lexem.t == LexemTypeBracketLeft {
 
-				fmt.Print(node.lexem.text)
+				out.WriteString(node.lexem.text)
 
 				// Add spaces only in case of non-empty subelements inside ()
 				if len(node.sub_elements) > 0 {
-					fmt.Print(" ")
+					out.WriteString(" ")
 				}
 
 			} else {
-				fmt.Print(node.lexem.text)
+				out.WriteString(node.lexem.text)
 			}
 
 			// Insert unconditional newlines after semicolon only in blocks, not in (), [], <//>, etc.
@@ -200,43 +205,43 @@ func PrintLexTreeNodes_r(nodes LexTreeNodeList, depth int, prev_was_newline *boo
 				sub_elements_depth -= 1
 			}
 
-			PrintLexTreeNodes_r(node.sub_elements, sub_elements_depth, prev_was_newline, subelements_semicolon_is_newline)
+			PrintLexTreeNodes_r(node.sub_elements, out, sub_elements_depth, prev_was_newline, subelements_semicolon_is_newline)
 
 			// For now add newlines only before/after {}
 			if node.trailing_lexem.t == LexemTypeBraceRight {
 
 				if !*prev_was_newline {
-					fmt.Print("\n")
+					out.WriteString("\n")
 				}
 
 				for i := 0; i < depth; i++ {
-					fmt.Print("\t")
+					out.WriteString("\t")
 				}
 
-				fmt.Print(node.trailing_lexem.text)
-				fmt.Print("\n")
+				out.WriteString(node.trailing_lexem.text)
+				out.WriteString("\n")
 				*prev_was_newline = true
 
 			} else if node.trailing_lexem.t == LexemTypeBracketRight {
 
 				// Add spaces only in case of non-empty subelements inside ()
 				if len(node.sub_elements) > 0 {
-					fmt.Print(" ")
+					out.WriteString(" ")
 				}
-				fmt.Print(node.trailing_lexem.text)
+				out.WriteString(node.trailing_lexem.text)
 
 			} else if node.trailing_lexem.t == LexemTypeTemplateBracketRight {
 
-				fmt.Print(node.trailing_lexem.text)
+				out.WriteString(node.trailing_lexem.text)
 
 				if is_template_declaration {
-					fmt.Print("\n")
+					out.WriteString("\n")
 					*prev_was_newline = true
 				}
 
 			} else {
 
-				fmt.Print(node.trailing_lexem.text)
+				out.WriteString(node.trailing_lexem.text)
 			}
 		}
 	}
