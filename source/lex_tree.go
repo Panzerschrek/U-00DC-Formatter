@@ -113,6 +113,15 @@ func PrintLexTreeNodes_r(nodes LexTreeNodeList, out *strings.Builder, depth int,
 
 	for i, node := range nodes {
 
+		if node.lexem.t != LexemTypeSemicolon && i > 0 && nodes[i-1].trailing_lexem.t == LexemTypeBraceRight {
+			// Add extra empty line after "}", except it is "else".
+			// This ensures that global things like classes or functions are always separated by an empty line.
+			if node.lexem.text != "else" {
+				out.WriteString("\n")
+				*prev_was_newline = true
+			}
+		}
+
 		if *prev_was_newline {
 			for i := 0; i < depth; i++ {
 				out.WriteString("\t")
