@@ -253,6 +253,12 @@ func WhitespaceIsNeeded(l *Lexem, r *Lexem) bool {
 		if l.t == LexemTypeDot || l.t == LexemTypeScope || l.t == LexemTypeTemplateBracketRight {
 			return false
 		}
+		if l.t == LexemTypeAnd {
+			if r.text == "mut" || r.text == "imut" || r.text == "constexpr" {
+				// Allow "&mut", "&imut", "&constexpr".
+				return false
+			}
+		}
 		return true
 
 	case LexemTypeMacroIdentifier:
