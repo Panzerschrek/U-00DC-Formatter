@@ -4,6 +4,8 @@ import (
 	"strings"
 )
 
+// Convert parsed LexTree into string representation.
+// Use passed options.
 func PrintLexTreeNodes(nodes LexTreeNodeList, options *FormattingOptions) string {
 	var prev_was_newline bool = false
 	builder := strings.Builder{}
@@ -11,6 +13,10 @@ func PrintLexTreeNodes(nodes LexTreeNodeList, options *FormattingOptions) string
 	return builder.String()
 }
 
+// Main formatting routine.
+// Since it operates with simple tree-like structure and not proper syntax tree, parsed based on proper language grammatic,
+// it uses some heuristics to detect common patterns.
+// Such heuristics may occasionally fail.
 func PrintLexTreeNodes_r(
 	nodes LexTreeNodeList,
 	options *FormattingOptions,

@@ -1,5 +1,9 @@
 package main
 
+// Do not perform proper syntax analysis.
+// It's not possible due to complication with macros.
+// Build simple tree structure instead - where lexems inside paired symbols ( (), [], {}, <//>, <??>) are grouped together.
+
 type LexTreeNodeList = []LexTreeNode
 
 type LexTreeNode struct {
@@ -12,7 +16,7 @@ func BuildLexTree(lexems []Lexem) LexTreeNodeList {
 	return ParseLexTree_r(&lexems, LexemTypeEndOfFile)
 }
 
-// Parse until specified end of line.
+// Parse until specified end lexem.
 func ParseLexTree_r(lexems *[]Lexem, end_lexem_type LexemType) LexTreeNodeList {
 	result := make([]LexTreeNode, 0)
 

@@ -104,7 +104,7 @@ const (
 	LexemTypeEndOfFile
 )
 
-func splitProgramIntoLexems(s string) []Lexem {
+func SplitProgramIntoLexems(s string) []Lexem {
 	result := make([]Lexem, 0)
 
 	for len(s) > 0 {

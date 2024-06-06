@@ -10,7 +10,7 @@ func main() {
 
 	file_contents := ReadFile(args[0])
 
-	lexems := splitProgramIntoLexems(file_contents)
+	lexems := SplitProgramIntoLexems(file_contents)
 
 	if true {
 		for _, lexem := range lexems {
