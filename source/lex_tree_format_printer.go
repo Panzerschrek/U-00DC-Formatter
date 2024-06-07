@@ -157,17 +157,9 @@ func PrintLexTreeNodes_r(
 
 			// For namespaces avoid adding extra intendation.
 			// TODO - make this behavior configurabe.
-			sub_elements_depth := depth + 1
-			if is_namespace {
-				sub_elements_depth -= 1
-			}
-
-			// Check if can write subelements in single line.
-			sub_elements_force_single_line := force_single_line
-			if !sub_elements_force_single_line {
-				if CanWriteInSingleLine(node.sub_elements, options) {
-					sub_elements_force_single_line = true
-				}
+			sub_elements_depth := depth
+			if node.lexem.t == LexemTypeBraceLeft && !is_namespace {
+				sub_elements_depth++
 			}
 
 			PrintLexTreeNodes_r(
@@ -176,7 +168,7 @@ func PrintLexTreeNodes_r(
 				out,
 				sub_elements_depth,
 				prev_was_newline,
-				sub_elements_force_single_line)
+				force_single_line)
 
 			// For now add newlines only before/after {}
 			if node.trailing_lexem.t == LexemTypeBraceRight {
