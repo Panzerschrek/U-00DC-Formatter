@@ -9,7 +9,7 @@ import (
 func PrintLexTreeNodes(nodes LexTreeNodeList, options *FormattingOptions) string {
 	var prev_was_newline bool = false
 	builder := strings.Builder{}
-	PrintLexTreeNodes_r(nodes, options, &builder, 0, &prev_was_newline, true)
+	PrintLexTreeNodes_r(nodes, options, &builder, 0, &prev_was_newline, false)
 	return builder.String()
 }
 
@@ -23,7 +23,13 @@ func PrintLexTreeNodes_r(
 	out *strings.Builder,
 	depth int,
 	prev_was_newline *bool,
-	semicolon_is_newline bool) {
+	force_single_line bool) {
+
+	// In force single line mode replace all newlines with spaces.
+	newline_char := "\n"
+	if force_single_line {
+		newline_char = " "
+	}
 
 	for i, node := range nodes {
 
@@ -31,37 +37,32 @@ func PrintLexTreeNodes_r(
 			// Add extra empty line after "}", except it is "else".
 			// This ensures that global things like classes or functions are always separated by an empty line.
 			if node.lexem.text != "else" {
-				out.WriteString("\n")
+				out.WriteString(newline_char)
 				*prev_was_newline = true
 			}
 		}
 
-		if *prev_was_newline {
+		if *prev_was_newline && !force_single_line {
 			for i := 0; i < depth; i++ {
 				out.WriteString("\t")
 			}
 		}
 
 		if node.sub_elements == nil {
+
 			if node.lexem.t == LexemTypeSemicolon {
 
-				// Add newline after ";", if necessary
-				if semicolon_is_newline {
-
-					out.WriteString(node.lexem.text)
-					out.WriteString("\n")
-					*prev_was_newline = true
-
-				} else {
-
-					out.WriteString(node.lexem.text)
-					*prev_was_newline = false
-				}
+				// Add newline after ";".
+				// TODO - do this only if it is necessary.
+				out.WriteString(node.lexem.text)
+				out.WriteString(newline_char)
+				*prev_was_newline = true
 
 			} else if node.lexem.t == LexemTypeLineComment {
 
+				// Always add newline after line comment.
 				out.WriteString(node.lexem.text)
-				out.WriteString("\n")
+				out.WriteString(newline_char)
 				*prev_was_newline = true
 
 			} else {
@@ -76,7 +77,7 @@ func PrintLexTreeNodes_r(
 
 			if !*prev_was_newline && i > 0 && nodes[i-1].lexem.text == "import" {
 				// Add newlines after imports.
-				out.WriteString("\n")
+				out.WriteString(newline_char)
 				*prev_was_newline = true
 			}
 
@@ -85,14 +86,16 @@ func PrintLexTreeNodes_r(
 			// For now add newlines only before/after {}
 			if node.lexem.t == LexemTypeBraceLeft {
 
-				out.WriteString("\n")
+				out.WriteString(newline_char)
 
-				for i := 0; i < depth; i++ {
-					out.WriteString("\t")
+				if !force_single_line {
+					for i := 0; i < depth; i++ {
+						out.WriteString("\t")
+					}
 				}
 
 				out.WriteString(node.lexem.text)
-				out.WriteString("\n")
+				out.WriteString(newline_char)
 				*prev_was_newline = true
 
 			} else if node.lexem.t == LexemTypeBracketLeft {
@@ -107,10 +110,6 @@ func PrintLexTreeNodes_r(
 			} else {
 				out.WriteString(node.lexem.text)
 			}
-
-			// Insert unconditional newlines after semicolon only in blocks, not in (), [], <//>, etc.
-			// This prevents making "for" operator ugly.
-			subelements_semicolon_is_newline := node.lexem.t == LexemTypeBraceLeft
 
 			// Somewhat hacky namespaces detection.
 			// Assuming "{" follows directly after something like "namespace SomeName".
@@ -127,27 +126,37 @@ func PrintLexTreeNodes_r(
 				sub_elements_depth -= 1
 			}
 
+			// Check if can write subelements in single line.
+			sub_elements_force_single_line := force_single_line
+			if !sub_elements_force_single_line {
+				if CanWriteInSingleLine(&node, options) {
+					sub_elements_force_single_line = true
+				}
+			}
+
 			PrintLexTreeNodes_r(
 				node.sub_elements,
 				options,
 				out,
 				sub_elements_depth,
 				prev_was_newline,
-				subelements_semicolon_is_newline)
+				sub_elements_force_single_line)
 
 			// For now add newlines only before/after {}
 			if node.trailing_lexem.t == LexemTypeBraceRight {
 
 				if !*prev_was_newline {
-					out.WriteString("\n")
+					out.WriteString(newline_char)
 				}
 
-				for i := 0; i < depth; i++ {
-					out.WriteString("\t")
+				if !force_single_line {
+					for i := 0; i < depth; i++ {
+						out.WriteString("\t")
+					}
 				}
 
 				out.WriteString(node.trailing_lexem.text)
-				out.WriteString("\n")
+				out.WriteString(newline_char)
 				*prev_was_newline = true
 
 			} else if node.trailing_lexem.t == LexemTypeBracketRight {
@@ -163,7 +172,7 @@ func PrintLexTreeNodes_r(
 				out.WriteString(node.trailing_lexem.text)
 
 				if is_template_declaration {
-					out.WriteString("\n")
+					out.WriteString(newline_char)
 					*prev_was_newline = true
 				}
 
@@ -173,6 +182,42 @@ func PrintLexTreeNodes_r(
 			}
 		}
 	}
+}
+
+func CanWriteInSingleLine(node *LexTreeNode, options *FormattingOptions) bool {
+
+	// Fast check - if this node requires newline.
+	if node.lexem.t == LexemTypeLineComment || node.lexem.t == LexemTypeSemicolon {
+		return false
+	}
+
+	// Recursively check contents.
+	for _, sub_node := range node.sub_elements {
+		if !CanWriteInSingleLine(&sub_node, options) {
+			return false
+		}
+	}
+
+	// More detail check - write all in single line and count length.
+	builder := strings.Builder{}
+	prev_was_newline := false
+	depth := 0 // TODO - pass it
+	PrintLexTreeNodes_r(node.sub_elements, options, &builder, depth, &prev_was_newline, true)
+
+	s := builder.String()
+
+	// Evaluate result string length.
+	// Treat tabs specially.
+	len := uint(0)
+	for _, c := range s {
+		if c == '\t' {
+			len += options.tab_size
+		} else {
+			len++
+		}
+	}
+
+	return len <= options.max_line_width
 }
 
 func WhitespaceIsNeeded(l *Lexem, r *Lexem) bool {
