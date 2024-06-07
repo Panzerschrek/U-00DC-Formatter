@@ -31,7 +31,10 @@ func PrintLexTreeNodes_r(
 		newline_char = " "
 	}
 
-	if len(nodes) > 1 && !force_single_line && !CanWriteInSingleLine(nodes, options) {
+	if len(nodes) > 1 &&
+		!force_single_line &&
+		!HasNaturalNewlines(nodes) &&
+		!CanWriteInSingleLine(nodes, options) {
 		// Recursively split and print this list, adding newlines in split points.
 
 		// Search for the most important lexem type to use it as splitter.
@@ -78,13 +81,13 @@ func PrintLexTreeNodes_r(
 			}
 		}
 
-		if *prev_was_newline && !force_single_line {
-			for i := 0; i < depth; i++ {
-				out.WriteString("\t")
-			}
-		}
-
 		if node.sub_elements == nil {
+
+			if *prev_was_newline && !force_single_line {
+				for i := 0; i < depth; i++ {
+					out.WriteString("\t")
+				}
+			}
 
 			if node.lexem.t == LexemTypeSemicolon {
 
@@ -119,10 +122,13 @@ func PrintLexTreeNodes_r(
 
 		} else {
 
-			// For now add newlines only before/after {}
-			if node.lexem.t == LexemTypeBraceLeft {
+			subelements_contain_natural_newlines := !force_single_line && HasNaturalNewlines(node.sub_elements)
 
-				out.WriteString(newline_char)
+			if subelements_contain_natural_newlines {
+
+				if !*prev_was_newline {
+					out.WriteString(newline_char)
+				}
 
 				if !force_single_line {
 					for i := 0; i < depth; i++ {
@@ -134,17 +140,12 @@ func PrintLexTreeNodes_r(
 				out.WriteString(newline_char)
 				*prev_was_newline = true
 
-			} else if node.lexem.t == LexemTypeBracketLeft {
-
+			} else {
 				out.WriteString(node.lexem.text)
 
-				// Add spaces only in case of non-empty subelements inside ()
 				if len(node.sub_elements) > 0 {
 					out.WriteString(" ")
 				}
-
-			} else {
-				out.WriteString(node.lexem.text)
 			}
 
 			// Somewhat hacky namespaces detection.
@@ -154,12 +155,13 @@ func PrintLexTreeNodes_r(
 
 			// Hacky template declaration detection.
 			is_template_declaration := node.lexem.t == LexemTypeTemplateBracketLeft && i >= 1 && nodes[i-1].lexem.text == "template"
+			_ = is_template_declaration // TODO - use it
 
 			// For namespaces avoid adding extra intendation.
 			// TODO - make this behavior configurabe.
-			sub_elements_depth := depth
-			if node.lexem.t == LexemTypeBraceLeft && !is_namespace {
-				sub_elements_depth++
+			sub_elements_depth := depth + 1
+			if is_namespace {
+				sub_elements_depth--
 			}
 
 			PrintLexTreeNodes_r(
@@ -170,8 +172,7 @@ func PrintLexTreeNodes_r(
 				prev_was_newline,
 				force_single_line)
 
-			// For now add newlines only before/after {}
-			if node.trailing_lexem.t == LexemTypeBraceRight {
+			if subelements_contain_natural_newlines {
 
 				if !*prev_was_newline {
 					out.WriteString(newline_char)
@@ -187,24 +188,11 @@ func PrintLexTreeNodes_r(
 				out.WriteString(newline_char)
 				*prev_was_newline = true
 
-			} else if node.trailing_lexem.t == LexemTypeBracketRight {
+			} else {
 
-				// Add spaces only in case of non-empty subelements inside ()
 				if len(node.sub_elements) > 0 {
 					out.WriteString(" ")
 				}
-				out.WriteString(node.trailing_lexem.text)
-
-			} else if node.trailing_lexem.t == LexemTypeTemplateBracketRight {
-
-				out.WriteString(node.trailing_lexem.text)
-
-				if is_template_declaration {
-					out.WriteString(newline_char)
-					*prev_was_newline = true
-				}
-
-			} else {
 
 				out.WriteString(node.trailing_lexem.text)
 			}
@@ -212,19 +200,22 @@ func PrintLexTreeNodes_r(
 	}
 }
 
-func CanWriteInSingleLine(nodes LexTreeNodeList, options *FormattingOptions) bool {
+func HasNaturalNewlines(nodes LexTreeNodeList) bool {
 
 	for _, node := range nodes {
-		// Fast check - if this node requires newline.{
 		if node.lexem.t == LexemTypeLineComment || node.lexem.t == LexemTypeSemicolon {
-			return false
+			return true
 		}
 
-		// Recursively check contents.
-		if !CanWriteInSingleLine(node.sub_elements, options) {
-			return false
+		if HasNaturalNewlines(node.sub_elements) {
+			return true
 		}
 	}
+
+	return false
+}
+
+func CanWriteInSingleLine(nodes LexTreeNodeList, options *FormattingOptions) bool {
 
 	// More detail check - write all in single line and count length.
 	builder := strings.Builder{}
