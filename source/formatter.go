@@ -15,7 +15,7 @@ func main() {
 		panic(err)
 	}
 
-	if true {
+	if false {
 		for _, lexem := range lexems {
 			fmt.Print(lexem.text)
 			fmt.Print(" ")
@@ -30,7 +30,22 @@ func main() {
 
 	options := GetDefaultFormattingOptions()
 	text_formatted := PrintLexTreeNodes(lex_tree, &options)
-	fmt.Print(text_formatted)
+	if false {
+		fmt.Print(text_formatted)
+	}
+
+	text_by_lines := SplitLexTreeIntoLines(lex_tree)
+	for _, line := range text_by_lines {
+		for i := uint(0); i < line.indentation; i++ {
+			fmt.Print("\t")
+		}
+
+		for _, lexem := range line.lexems {
+			fmt.Print(lexem.text, " ")
+		}
+
+		fmt.Print("\n")
+	}
 }
 
 func ReadFile(s string) string {
