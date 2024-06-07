@@ -1,5 +1,6 @@
 package main
 
+// TODO - use better name?
 type LogicalLine = struct {
 	indentation uint
 	lexems      []Lexem
@@ -7,11 +8,13 @@ type LogicalLine = struct {
 
 // Convert lex tree into line by line representation.
 func SplitLexTreeIntoLines(nodes LexTreeNodeList) []LogicalLine {
+
 	result := make([]LogicalLine, 0)
 	AddNewLine(&result, 0)
 
 	prev_was_newline := false
 	SplitLexTreeIntoLines_r(nodes, 0, &result, &prev_was_newline)
+
 	return result
 }
 
@@ -29,24 +32,22 @@ func SplitLexTreeIntoLines_r(nodes LexTreeNodeList, indentation uint, out *[]Log
 
 		if node.sub_elements == nil {
 
+			AppendToLastLine(out, node.lexem)
+
 			if node.lexem.t == LexemTypeSemicolon {
 
 				// Add newline after ";".
-				// TODO - do this only if it is necessary.
-				AppendToLastLine(out, node.lexem)
+				// TODO - do this only if it is necessary (allow ";" in single-line "for" operator).
 				AddNewLine(out, indentation)
 				*prev_was_newline = true
 
 			} else if node.lexem.t == LexemTypeLineComment {
 
 				// Always add newline after line comment.
-				AppendToLastLine(out, node.lexem)
 				AddNewLine(out, indentation)
 				*prev_was_newline = true
 
 			} else {
-
-				AppendToLastLine(out, node.lexem)
 				*prev_was_newline = false
 			}
 

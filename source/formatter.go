@@ -36,8 +36,11 @@ func main() {
 
 	text_by_lines := SplitLexTreeIntoLines(lex_tree)
 	for _, line := range text_by_lines {
+
+		// TODO - split too long lines, using limit specified.
+
 		for i := uint(0); i < line.indentation; i++ {
-			fmt.Print("\t")
+			fmt.Print(options.indentation_sequence)
 		}
 
 		for i, lexem := range line.lexems {
