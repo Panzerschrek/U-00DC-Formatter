@@ -273,6 +273,9 @@ func WhitespaceIsNeeded(l *Lexem, r *Lexem) bool {
 	case LexemTypeLiteralSuffix:
 
 	case LexemTypeBracketLeft:
+		if l.t == LexemTypeBracketLeft {
+			return true
+		}
 		return false
 
 	case LexemTypeBracketRight:

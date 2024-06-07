@@ -40,8 +40,11 @@ func main() {
 			fmt.Print("\t")
 		}
 
-		for _, lexem := range line.lexems {
-			fmt.Print(lexem.text, " ")
+		for i, lexem := range line.lexems {
+			if i > 0 && WhitespaceIsNeeded(&line.lexems[i-1], &lexem) {
+				fmt.Print(" ")
+			}
+			fmt.Print(lexem.text)
 		}
 
 		fmt.Print("\n")
