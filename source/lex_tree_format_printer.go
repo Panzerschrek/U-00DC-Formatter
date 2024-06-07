@@ -39,12 +39,10 @@ func PrintLexTreeNodes_r(
 
 		// Search for the most important lexem type to use it as splitter.
 		max_priority := 0
-		max_priority_lexem_type := LexemTypeNone
 		for _, node := range nodes {
 			priority := GetLineSplitLexemPriority(&node.lexem)
 			if priority > max_priority {
 				max_priority = priority
-				max_priority_lexem_type = node.lexem.t
 			}
 		}
 
@@ -52,7 +50,8 @@ func PrintLexTreeNodes_r(
 		// Add newline after each part.
 		last_i := 0
 		for i := 0; i < len(nodes)-1; i++ {
-			if nodes[i].lexem.t == max_priority_lexem_type {
+			if GetLineSplitLexemPriority(&nodes[i].lexem) == max_priority {
+
 				PrintLexTreeNodes_r(nodes[last_i:i+1], options, out, depth, prev_was_newline, false)
 				last_i = i + 1
 
@@ -217,7 +216,8 @@ func HasNaturalNewlines(nodes LexTreeNodeList) bool {
 
 func CanWriteInSingleLine(nodes LexTreeNodeList, options *FormattingOptions) bool {
 
-	// More detail check - write all in single line and count length.
+	// Write all in single line and count length.
+
 	builder := strings.Builder{}
 	prev_was_newline := false
 	depth := 0 // TODO - pass it
@@ -465,23 +465,75 @@ func WhitespaceIsNeeded(l *Lexem, r *Lexem) bool {
 func GetLineSplitLexemPriority(l *Lexem) int {
 	switch l.t {
 
-	case LexemTypeBraceLeft:
-		return 150
-
 	case LexemTypeLineComment:
 		return 200
 
 	case LexemTypeSemicolon:
 		return 100
+
 	case LexemTypeComma:
 		return 99
+
+	case LexemTypeAssignment:
+		return 90
+
+	// Use here binary operator priorities.
 
 	case LexemTypeDisjunction:
 		return 80
 	case LexemTypeConjunction:
-		return 99
+		return 79
 
-		// TODO - add other lexems.
+	case LexemTypeOr:
+		return 78
+	case LexemTypeXor:
+		return 77
+	case LexemTypeAnd:
+		return 76
+
+	case LexemTypeCompareEqual:
+	case LexemTypeCompareNotEqual:
+		return 75
+
+	case LexemTypeCompareLess:
+	case LexemTypeCompareLessOrEqual:
+	case LexemTypeCompareGreater:
+	case LexemTypeCompareGreaterOrEqual:
+		return 74
+
+	case LexemTypeCompareOrder:
+		return 73
+
+	case LexemTypeShiftLeft:
+	case LexemTypeShiftRight:
+		return 72
+
+	case LexemTypePlus:
+		return 71
+	case LexemTypeMinus: // TODO - what about unary minus?
+		return 70
+
+	case LexemTypeStar:
+	case LexemTypeSlash:
+	case LexemTypePercent:
+		return 69
+
+	case LexemTypeDot:
+		return 40
+
+	case LexemTypeBraceLeft:
+		return 30
+
+	case LexemTypeBracketLeft:
+	case LexemTypeSquareBracketLeft:
+	case LexemTypeTemplateBracketLeft:
+	case LexemTypeMacroBracketLeft:
+		return 20
+
+	case LexemTypeIdentifier:
+		return 10
+
+		// TODO - add other lexems
 	}
 
 	return 1
