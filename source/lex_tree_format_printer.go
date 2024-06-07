@@ -84,7 +84,7 @@ func PrintLexTreeNodes_r(
 
 			if *prev_was_newline && !force_single_line {
 				for i := 0; i < depth; i++ {
-					out.WriteString("\t")
+					out.WriteString(options.indentation_sequence)
 				}
 			}
 
@@ -131,7 +131,7 @@ func PrintLexTreeNodes_r(
 
 				if !force_single_line {
 					for i := 0; i < depth; i++ {
-						out.WriteString("\t")
+						out.WriteString(options.indentation_sequence)
 					}
 				}
 
@@ -179,7 +179,7 @@ func PrintLexTreeNodes_r(
 
 				if !force_single_line {
 					for i := 0; i < depth; i++ {
-						out.WriteString("\t")
+						out.WriteString(options.indentation_sequence)
 					}
 				}
 
