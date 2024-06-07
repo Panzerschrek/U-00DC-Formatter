@@ -31,6 +31,38 @@ func PrintLexTreeNodes_r(
 		newline_char = " "
 	}
 
+	if len(nodes) > 1 && !force_single_line && !CanWriteInSingleLine(nodes, options) {
+		// Recursively split and print this list, adding newlines in split points.
+
+		// Search for the most important lexem type to use it as splitter.
+		max_priority := 0
+		max_priority_lexem_type := LexemTypeNone
+		for _, node := range nodes {
+			priority := GetLineSplitLexemPriority(&node.lexem)
+			if priority > max_priority {
+				max_priority = priority
+				max_priority_lexem_type = node.lexem.t
+			}
+		}
+
+		// Split this lexems list into parts, using maximum priority lexem type.
+		// Add newline after each part.
+		last_i := 0
+		for i := 0; i < len(nodes); i++ {
+			if nodes[i].lexem.t == max_priority_lexem_type || i+1 == len(nodes) {
+				if !(last_i == 0 && i+1 == len(nodes)) { // Check to avoid inifinite recursion.
+					//
+					PrintLexTreeNodes_r(nodes[last_i:i+1], options, out, depth, prev_was_newline, false)
+				}
+				last_i = i + 1
+				out.WriteString("\n")
+				*prev_was_newline = true
+			}
+		}
+
+		return
+	}
+
 	for i, node := range nodes {
 
 		if node.lexem.t != LexemTypeSemicolon && i > 0 && nodes[i-1].trailing_lexem.t == LexemTypeBraceRight {
@@ -129,7 +161,7 @@ func PrintLexTreeNodes_r(
 			// Check if can write subelements in single line.
 			sub_elements_force_single_line := force_single_line
 			if !sub_elements_force_single_line {
-				if CanWriteInSingleLine(&node, options) {
+				if CanWriteInSingleLine(node.sub_elements, options) {
 					sub_elements_force_single_line = true
 				}
 			}
@@ -184,16 +216,18 @@ func PrintLexTreeNodes_r(
 	}
 }
 
-func CanWriteInSingleLine(node *LexTreeNode, options *FormattingOptions) bool {
+func CanWriteInSingleLine(nodes LexTreeNodeList, options *FormattingOptions) bool {
 
-	// Fast check - if this node requires newline.
-	if node.lexem.t == LexemTypeLineComment || node.lexem.t == LexemTypeSemicolon {
-		return false
-	}
+	for i, node := range nodes {
+		// Fast check - if this node requires newline.
+		if i+1 < len(nodes) {
+			if node.lexem.t == LexemTypeLineComment || node.lexem.t == LexemTypeSemicolon {
+				return false
+			}
+		}
 
-	// Recursively check contents.
-	for _, sub_node := range node.sub_elements {
-		if !CanWriteInSingleLine(&sub_node, options) {
+		// Recursively check contents.
+		if !CanWriteInSingleLine(node.sub_elements, options) {
 			return false
 		}
 	}
@@ -202,7 +236,7 @@ func CanWriteInSingleLine(node *LexTreeNode, options *FormattingOptions) bool {
 	builder := strings.Builder{}
 	prev_was_newline := false
 	depth := 0 // TODO - pass it
-	PrintLexTreeNodes_r(node.sub_elements, options, &builder, depth, &prev_was_newline, true)
+	PrintLexTreeNodes_r(nodes, options, &builder, depth, &prev_was_newline, true)
 
 	s := builder.String()
 
@@ -440,4 +474,26 @@ func WhitespaceIsNeeded(l *Lexem, r *Lexem) bool {
 	}
 
 	return true
+}
+
+// More priority - more likely to split.
+func GetLineSplitLexemPriority(l *Lexem) int {
+	switch l.t {
+	case LexemTypeLineComment:
+		return 200
+
+	case LexemTypeSemicolon:
+		return 100
+	case LexemTypeComma:
+		return 99
+
+	case LexemTypeDisjunction:
+		return 80
+	case LexemTypeConjunction:
+		return 99
+
+		// TODO - add other lexems.
+	}
+
+	return 1
 }
