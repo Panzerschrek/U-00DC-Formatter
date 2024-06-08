@@ -36,8 +36,9 @@ func PrintLexTreeNodes_r(
 		// Recursively split and print this list, adding newlines in split points.
 
 		// Search for the most important lexem type to use it as splitter.
+		// Ignore last node, because splitting at last node has no sense.
 		max_priority := 0
-		for _, node := range nodes {
+		for _, node := range nodes[:len(nodes)-1] {
 			priority := GetLineSplitLexemPriority(&node.lexem)
 			if priority > max_priority {
 				max_priority = priority
@@ -49,7 +50,14 @@ func PrintLexTreeNodes_r(
 		last_i := 0
 		subrange_index := 0
 		for i := 0; i < len(nodes)-1; i++ {
+
 			if GetLineSplitLexemPriority(&nodes[i].lexem) == max_priority {
+
+				if !*prev_was_newline {
+					out.WriteString(options.line_end_sequence)
+					*prev_was_newline = true
+				}
+
 				subrange_depth := depth
 				if subrange_index > 0 {
 					subrange_depth++
@@ -58,16 +66,17 @@ func PrintLexTreeNodes_r(
 				PrintLexTreeNodes_r(nodes[last_i:i+1], options, out, subrange_depth, prev_was_newline, false)
 				last_i = i + 1
 				subrange_index++
-
-				if !*prev_was_newline {
-					out.WriteString(options.line_end_sequence)
-					*prev_was_newline = true
-				}
 			}
 		}
 
 		// Process last segment specially.
 		if last_i != 0 {
+
+			if !*prev_was_newline {
+				out.WriteString(options.line_end_sequence)
+				*prev_was_newline = true
+			}
+
 			subrange_depth := depth
 			if subrange_index > 0 {
 				subrange_depth++
@@ -155,8 +164,8 @@ func GetLineSplitLexemPriority(l *Lexem) int {
 	case LexemTypeLineComment:
 		return 200
 
-		//	case LexemTypeSemicolon:
-		//		return 100
+	case LexemTypeSemicolon:
+		return 100
 
 	case LexemTypeComma:
 		return 99
