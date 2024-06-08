@@ -29,29 +29,10 @@ func main() {
 	}
 
 	options := GetDefaultFormattingOptions()
-	text_formatted := PrintLexTreeNodes(lex_tree, &options)
-	if false {
-		fmt.Print(text_formatted)
-	}
 
 	text_by_lines := SplitLexTreeIntoLines(lex_tree)
-	for _, line := range text_by_lines {
-
-		// TODO - split too long lines, using limit specified.
-
-		for i := uint(0); i < line.indentation; i++ {
-			fmt.Print(options.indentation_sequence)
-		}
-
-		for i, lexem := range line.lexems {
-			if i > 0 && WhitespaceIsNeeded(&line.lexems[i-1], &lexem) {
-				fmt.Print(" ")
-			}
-			fmt.Print(lexem.text)
-		}
-
-		fmt.Print(options.line_end_sequence)
-	}
+	text_formatted := PrintLines(text_by_lines, &options)
+	fmt.Print(text_formatted)
 }
 
 func ReadFile(s string) string {
