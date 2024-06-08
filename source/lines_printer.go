@@ -37,7 +37,7 @@ func PrintLines(lines []LogicalLine, options *FormattingOptions) string {
 			// Try to split this line.
 			lex_tree, err := BuildLexTree(line.lexems)
 			_ = err // TODO - handle it
-			line_splitted := PrintLexTreeNodes(lex_tree, options)
+			line_splitted := PrintLexTreeNodes(lex_tree, line.indentation, options)
 			text_builder.WriteString(line_splitted)
 		}
 	}

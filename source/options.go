@@ -12,5 +12,5 @@ func GetDefaultFormattingOptions() FormattingOptions {
 		indentation_sequence: "\t",
 		line_end_sequence:    "\n",
 		tab_size:             4,
-		max_line_width:       120}
+		max_line_width:       30}
 }
