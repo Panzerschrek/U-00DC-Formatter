@@ -32,7 +32,6 @@ func PrintLexTreeNodes_r(
 
 	if len(nodes) > 1 &&
 		!force_single_line &&
-		!HasNaturalNewlines(nodes) &&
 		!CanWriteInSingleLine(nodes, depth, options) {
 		// Recursively split and print this list, adding newlines in split points.
 
@@ -51,7 +50,6 @@ func PrintLexTreeNodes_r(
 		subrange_index := 0
 		for i := 0; i < len(nodes)-1; i++ {
 			if GetLineSplitLexemPriority(&nodes[i].lexem) == max_priority {
-
 				subrange_depth := depth
 				if subrange_index > 0 {
 					subrange_depth++
@@ -82,13 +80,13 @@ func PrintLexTreeNodes_r(
 
 	for i, node := range nodes {
 
-		if node.sub_elements == nil {
-
-			if *prev_was_newline && !force_single_line {
-				for i := uint(0); i < depth; i++ {
-					out.WriteString(options.indentation_sequence)
-				}
+		if *prev_was_newline && !force_single_line {
+			for i := uint(0); i < depth; i++ {
+				out.WriteString(options.indentation_sequence)
 			}
+		}
+
+		if node.sub_elements == nil {
 
 			if !*prev_was_newline && i > 0 && WhitespaceIsNeeded(&nodes[i-1].lexem, &node.lexem) {
 				out.WriteString(" ")
@@ -157,8 +155,8 @@ func GetLineSplitLexemPriority(l *Lexem) int {
 	case LexemTypeLineComment:
 		return 200
 
-	case LexemTypeSemicolon:
-		return 100
+		//	case LexemTypeSemicolon:
+		//		return 100
 
 	case LexemTypeComma:
 		return 99
