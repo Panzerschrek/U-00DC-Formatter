@@ -6,27 +6,43 @@ import (
 
 func PrintLines(lines []LogicalLine, options *FormattingOptions) string {
 
-	builder := strings.Builder{}
+	text_builder := strings.Builder{}
 
 	for _, line := range lines {
+
+		line_builder := strings.Builder{}
 
 		// TODO - split too long lines, using limit specified.
 
 		for i := uint(0); i < line.indentation; i++ {
-			builder.WriteString(options.indentation_sequence)
+			line_builder.WriteString(options.indentation_sequence)
 		}
 
 		for i, lexem := range line.lexems {
 			if i > 0 && WhitespaceIsNeeded(&line.lexems[i-1], &lexem) {
-				builder.WriteString(" ")
+				line_builder.WriteString(" ")
 			}
-			builder.WriteString(lexem.text)
+			line_builder.WriteString(lexem.text)
 		}
 
-		builder.WriteString(options.line_end_sequence)
+		line_builder.WriteString(options.line_end_sequence)
+
+		line_text := line_builder.String()
+		line_width := CalculateLineWidth(line_text, options)
+
+		if line_width <= options.max_line_width {
+			// Fine - line width does not exeed the limit.
+			text_builder.WriteString(line_text)
+		} else {
+			// Try to split this line.
+			lex_tree, err := BuildLexTree(line.lexems)
+			_ = err // TODO - handle it
+			line_splitted := PrintLexTreeNodes(lex_tree, options)
+			text_builder.WriteString(line_splitted)
+		}
 	}
 
-	return builder.String()
+	return text_builder.String()
 }
 
 func WhitespaceIsNeeded(l *Lexem, r *Lexem) bool {
@@ -252,4 +268,20 @@ func WhitespaceIsNeeded(l *Lexem, r *Lexem) bool {
 	}
 
 	return true
+}
+
+func CalculateLineWidth(line_text string, options *FormattingOptions) uint {
+
+	// Evaluate result string length.
+	// Treat tabs specially.
+	len := uint(0)
+	for _, c := range line_text {
+		if c == '\t' {
+			len += options.tab_size
+		} else {
+			len++
+		}
+	}
+
+	return len
 }
