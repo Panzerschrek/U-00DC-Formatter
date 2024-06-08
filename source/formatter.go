@@ -50,7 +50,7 @@ func main() {
 			fmt.Print(lexem.text)
 		}
 
-		fmt.Print("\n")
+		fmt.Print(options.line_end_sequence)
 	}
 }
 
