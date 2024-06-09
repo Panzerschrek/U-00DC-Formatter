@@ -126,22 +126,43 @@ func PrintLexTreeNodes_r(
 	}
 
 	if len(text_with_current_split) == 0 {
+		// Can't split at this level - use recursive split result.
 		out.WriteString(text_with_further_split)
 	} else if CountNewlines(text_with_current_split) <= CountNewlines(text_with_further_split) {
+		// Split at this level gives less or equal lines compared to splits at further levels.
 		out.WriteString(text_with_current_split)
 	} else {
-		text_with_further_split_width := CalculateLineWidth(text_with_further_split, options)
+
+		// Split result at this level and at further levels gives identical number of lines.
+		// Count max line with for further split and reject it if it gives too long lines.
+
+		max_line_width := uint(0)
+		current_line_width := uint(0)
+
 		for i := uint(0); i < indentation; i++ {
 			for _, c := range options.indentation_sequence {
 				if c == '\t' {
-					text_with_further_split_width += options.tab_size
+					current_line_width += options.tab_size
 				} else {
-					text_with_further_split_width++
+					current_line_width++
 				}
 			}
 		}
 
-		if text_with_further_split_width > options.max_line_width {
+		for _, c := range text_with_further_split {
+			if c == '\n' { // TODO - use newline sequence from options.
+				max_line_width = max(max_line_width, current_line_width)
+				current_line_width = 0
+			} else if c == '\t' {
+				current_line_width += options.tab_size
+			} else {
+				current_line_width++
+			}
+		}
+
+		max_line_width = max(max_line_width, current_line_width)
+
+		if max_line_width > options.max_line_width {
 			out.WriteString(text_with_current_split)
 		} else {
 			out.WriteString(text_with_further_split)
