@@ -6,14 +6,16 @@ import (
 
 // Convert parsed LexTree into string representation.
 // Use passed options.
-func PrintLexTreeNodes(nodes LexTreeNodeList, depth uint, options *FormattingOptions) string {
-	var prev_was_newline bool = true
+func PrintLexTreeNodes(nodes LexTreeNodeList, indentation uint, options *FormattingOptions) string {
 	builder := strings.Builder{}
-	PrintLexTreeNodes_r(nodes, options, &builder, depth, &prev_was_newline)
 
-	if !prev_was_newline {
-		builder.WriteString(options.line_end_sequence)
+	for i := uint(0); i < indentation; i++ {
+		builder.WriteString(options.indentation_sequence)
 	}
+
+	PrintLexTreeNodes_r(nodes, options, &builder, indentation)
+
+	builder.WriteString(options.line_end_sequence)
 
 	return builder.String()
 }
@@ -26,13 +28,23 @@ func PrintLexTreeNodes_r(
 	nodes LexTreeNodeList,
 	options *FormattingOptions,
 	out *strings.Builder,
-	depth uint,
-	prev_was_newline *bool) {
+	indentation uint) {
 
-	single_line_text := WriteLexTreeInSingleLine(nodes, depth, options)
-	if CalculateLineWidth(single_line_text, options) <= options.max_line_width {
+	single_line_text := WriteLexTreeInSingleLine(nodes, options)
+
+	line_width := CalculateLineWidth(single_line_text, options)
+	for i := uint(0); i < indentation; i++ {
+		for _, c := range options.indentation_sequence {
+			if c == '\t' {
+				line_width += options.tab_size
+			} else {
+				line_width++
+			}
+		}
+	}
+
+	if line_width <= options.max_line_width {
 		out.WriteString(single_line_text)
-		*prev_was_newline = false
 		return
 	}
 
@@ -52,86 +64,50 @@ func PrintLexTreeNodes_r(
 		// Split this lexems list into parts, using maximum priority lexem type.
 		// Add newline after each part.
 		last_i := 0
-		subrange_index := 0
 		for i := 0; i < len(nodes)-1; i++ {
 
 			if GetLineSplitLexemPriority(&nodes[i].lexem) == max_priority {
 
-				if !*prev_was_newline {
-					out.WriteString(options.line_end_sequence)
-					*prev_was_newline = true
-				}
-
-				subrange_depth := depth
-				if subrange_index > 0 {
-					subrange_depth++
-				}
-
-				PrintLexTreeNodes_r(nodes[last_i:i+1], options, out, subrange_depth, prev_was_newline)
+				PrintLexTreeNodes_r(nodes[last_i:i+1], options, out, indentation+1)
 				last_i = i + 1
-				subrange_index++
+
+				out.WriteString(options.line_end_sequence)
+				for i := uint(0); i < indentation+1; i++ {
+					out.WriteString(options.indentation_sequence)
+				}
 			}
 		}
 
 		// Process last segment specially.
-		if !*prev_was_newline {
-			out.WriteString(options.line_end_sequence)
-			*prev_was_newline = true
-		}
-
-		subrange_depth := depth
-		if subrange_index > 0 {
-			subrange_depth++
-		}
-
-		PrintLexTreeNodes_r(nodes[last_i:], options, out, subrange_depth, prev_was_newline)
+		PrintLexTreeNodes_r(nodes[last_i:], options, out, indentation+1)
 		return
 	}
 
 	for i, node := range nodes {
 
-		if *prev_was_newline {
-			for i := uint(0); i < depth; i++ {
-				out.WriteString(options.indentation_sequence)
-			}
-		}
-
 		if node.sub_elements == nil {
 
-			if !*prev_was_newline && i > 0 && WhitespaceIsNeeded(&nodes[i-1].lexem, &node.lexem) {
+			if i > 0 && WhitespaceIsNeeded(&nodes[i-1].lexem, &node.lexem) {
 				out.WriteString(" ")
 			}
 
 			out.WriteString(node.lexem.text)
-			*prev_was_newline = false
 
 		} else {
 
 			out.WriteString(node.lexem.text)
 
-			if !*prev_was_newline {
-				out.WriteString(options.line_end_sequence)
-				*prev_was_newline = true
-			} else {
-				if len(node.sub_elements) > 0 {
-					out.WriteString(" ")
-				}
-				*prev_was_newline = false
+			if len(node.sub_elements) > 0 {
+				out.WriteString(" ")
 			}
 
-			PrintLexTreeNodes_r(
-				node.sub_elements,
-				options,
-				out,
-				depth,
-				prev_was_newline)
+			PrintLexTreeNodes_r(node.sub_elements, options, out, indentation)
 
 			if len(node.sub_elements) > 0 {
 				out.WriteString(" ")
 			}
 
 			out.WriteString(node.trailing_lexem.text)
-			*prev_was_newline = false
 		}
 	}
 }
@@ -151,20 +127,16 @@ func HasNaturalNewlines(nodes LexTreeNodeList) bool {
 	return false
 }
 
-func WriteLexTreeInSingleLine(nodes LexTreeNodeList, indentation uint, options *FormattingOptions) string {
+func WriteLexTreeInSingleLine(nodes LexTreeNodeList, options *FormattingOptions) string {
 
 	builder := strings.Builder{}
 
-	for i := uint(0); i < indentation; i++ {
-		builder.WriteString(options.indentation_sequence)
-	}
-
-	WriteLexTreeInSingleLine_r(nodes, indentation, &builder)
+	WriteLexTreeInSingleLine_r(nodes, &builder)
 
 	return builder.String()
 }
 
-func WriteLexTreeInSingleLine_r(nodes LexTreeNodeList, indentation uint, out *strings.Builder) {
+func WriteLexTreeInSingleLine_r(nodes LexTreeNodeList, out *strings.Builder) {
 	for i, node := range nodes {
 
 		if node.sub_elements == nil {
@@ -182,7 +154,7 @@ func WriteLexTreeInSingleLine_r(nodes LexTreeNodeList, indentation uint, out *st
 				out.WriteString(" ")
 			}
 
-			WriteLexTreeInSingleLine_r(node.sub_elements, indentation, out)
+			WriteLexTreeInSingleLine_r(node.sub_elements, out)
 
 			if len(node.sub_elements) > 0 {
 				out.WriteString(" ")
