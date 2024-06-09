@@ -220,6 +220,10 @@ func GetLineSplitLexemPriority(l *Lexem) int {
 	case LexemTypeAssignment:
 		return 90
 
+	case LexemTypeColon,
+		LexemTypeQuestion:
+		return 82
+
 	// Use here binary operator priorities.
 
 	case LexemTypeDisjunction:
@@ -247,8 +251,8 @@ func GetLineSplitLexemPriority(l *Lexem) int {
 	case LexemTypeCompareOrder:
 		return 73
 
-	case LexemTypeShiftLeft:
-	case LexemTypeShiftRight:
+	case LexemTypeShiftLeft,
+		LexemTypeShiftRight:
 		return 72
 
 	case LexemTypePlus:
@@ -256,9 +260,9 @@ func GetLineSplitLexemPriority(l *Lexem) int {
 	case LexemTypeMinus: // TODO - what about unary minus?
 		return 70
 
-	case LexemTypeStar:
-	case LexemTypeSlash:
-	case LexemTypePercent:
+	case LexemTypeStar,
+		LexemTypeSlash,
+		LexemTypePercent:
 		return 69
 
 	case LexemTypeDot:
@@ -267,10 +271,10 @@ func GetLineSplitLexemPriority(l *Lexem) int {
 	case LexemTypeBraceLeft:
 		return 30
 
-	case LexemTypeBracketLeft:
-	case LexemTypeSquareBracketLeft:
-	case LexemTypeTemplateBracketLeft:
-	case LexemTypeMacroBracketLeft:
+	case LexemTypeBracketLeft,
+		LexemTypeSquareBracketLeft,
+		LexemTypeTemplateBracketLeft,
+		LexemTypeMacroBracketLeft:
 		return 20
 
 	case LexemTypeIdentifier:
