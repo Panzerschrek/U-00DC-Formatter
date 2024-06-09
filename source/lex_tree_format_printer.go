@@ -48,8 +48,12 @@ func PrintLexTreeNodes_r(
 		return
 	}
 
+	text_with_current_split := ""
+	text_with_further_split := ""
+
 	if len(nodes) > 1 {
 		// Recursively split and print this list, adding newlines in split points.
+		builder := strings.Builder{}
 
 		// Search for the most important lexem type to use it as splitter.
 		// Ignore last node, because splitting at last node has no sense.
@@ -64,50 +68,83 @@ func PrintLexTreeNodes_r(
 		// Split this lexems list into parts, using maximum priority lexem type.
 		// Add newline after each part.
 		last_i := 0
+		next_indentation := indentation
 		for i := 0; i < len(nodes)-1; i++ {
 
 			if GetLineSplitLexemPriority(&nodes[i].lexem) == max_priority {
 
-				PrintLexTreeNodes_r(nodes[last_i:i+1], options, out, indentation+1)
+				PrintLexTreeNodes_r(nodes[last_i:i+1], options, &builder, next_indentation)
 				last_i = i + 1
 
-				out.WriteString(options.line_end_sequence)
-				for i := uint(0); i < indentation+1; i++ {
-					out.WriteString(options.indentation_sequence)
+				next_indentation = indentation + 1
+
+				builder.WriteString(options.line_end_sequence)
+				for i := uint(0); i < next_indentation; i++ {
+					builder.WriteString(options.indentation_sequence)
 				}
 			}
 		}
 
 		// Process last segment specially.
-		PrintLexTreeNodes_r(nodes[last_i:], options, out, indentation+1)
-		return
+		PrintLexTreeNodes_r(nodes[last_i:], options, &builder, next_indentation)
+
+		text_with_current_split = builder.String()
 	}
 
-	for i, node := range nodes {
+	{
+		builder := strings.Builder{}
 
-		if node.sub_elements == nil {
+		for i, node := range nodes {
 
-			if i > 0 && WhitespaceIsNeeded(&nodes[i-1].lexem, &node.lexem) {
-				out.WriteString(" ")
+			if node.sub_elements == nil {
+
+				if i > 0 && WhitespaceIsNeeded(&nodes[i-1].lexem, &node.lexem) {
+					builder.WriteString(" ")
+				}
+
+				builder.WriteString(node.lexem.text)
+
+			} else {
+
+				builder.WriteString(node.lexem.text)
+
+				if len(node.sub_elements) > 0 {
+					builder.WriteString(" ")
+				}
+
+				PrintLexTreeNodes_r(node.sub_elements, options, &builder, indentation)
+
+				if len(node.sub_elements) > 0 {
+					builder.WriteString(" ")
+				}
+
+				builder.WriteString(node.trailing_lexem.text)
 			}
+		}
 
-			out.WriteString(node.lexem.text)
+		text_with_further_split = builder.String()
+	}
 
+	if len(text_with_current_split) == 0 {
+		out.WriteString(text_with_further_split)
+	} else if CountNewlines(text_with_current_split) <= CountNewlines(text_with_further_split) {
+		out.WriteString(text_with_current_split)
+	} else {
+		text_with_further_split_width := CalculateLineWidth(text_with_further_split, options)
+		for i := uint(0); i < indentation; i++ {
+			for _, c := range options.indentation_sequence {
+				if c == '\t' {
+					text_with_further_split_width += options.tab_size
+				} else {
+					text_with_further_split_width++
+				}
+			}
+		}
+
+		if text_with_further_split_width > options.max_line_width {
+			out.WriteString(text_with_current_split)
 		} else {
-
-			out.WriteString(node.lexem.text)
-
-			if len(node.sub_elements) > 0 {
-				out.WriteString(" ")
-			}
-
-			PrintLexTreeNodes_r(node.sub_elements, options, out, indentation)
-
-			if len(node.sub_elements) > 0 {
-				out.WriteString(" ")
-			}
-
-			out.WriteString(node.trailing_lexem.text)
+			out.WriteString(text_with_further_split)
 		}
 	}
 }
@@ -125,6 +162,18 @@ func HasNaturalNewlines(nodes LexTreeNodeList) bool {
 	}
 
 	return false
+}
+
+func CountNewlines(s string) uint {
+	// TODO - use newline sequence from options.
+	count := uint(0)
+	for _, c := range s {
+		if c == '\n' {
+			count++
+		}
+	}
+
+	return count
 }
 
 func WriteLexTreeInSingleLine(nodes LexTreeNodeList, options *FormattingOptions) string {
