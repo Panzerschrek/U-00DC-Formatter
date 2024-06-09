@@ -125,3 +125,18 @@ func AppendToLastLine(lines *[]LogicalLine, lexem Lexem) {
 func AddNewLine(lines *[]LogicalLine, indentation uint) {
 	*lines = append(*lines, LogicalLine{indentation: indentation, lexems: make([]Lexem, 0)})
 }
+
+func HasNaturalNewlines(nodes LexTreeNodeList) bool {
+
+	for _, node := range nodes {
+		if node.lexem.t == LexemTypeLineComment || node.lexem.t == LexemTypeSemicolon {
+			return true
+		}
+
+		if HasNaturalNewlines(node.sub_elements) {
+			return true
+		}
+	}
+
+	return false
+}
