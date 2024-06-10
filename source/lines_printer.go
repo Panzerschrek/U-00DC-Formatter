@@ -549,14 +549,14 @@ func GetLineSplitLexemPriority(l *Lexem) int {
 	case LexemTypeAnd:
 		return 76
 
-	case LexemTypeCompareEqual:
-	case LexemTypeCompareNotEqual:
+	case LexemTypeCompareEqual,
+		LexemTypeCompareNotEqual:
 		return 75
 
-	case LexemTypeCompareLess:
-	case LexemTypeCompareLessOrEqual:
-	case LexemTypeCompareGreater:
-	case LexemTypeCompareGreaterOrEqual:
+	case LexemTypeCompareLess,
+		LexemTypeCompareLessOrEqual,
+		LexemTypeCompareGreater,
+		LexemTypeCompareGreaterOrEqual:
 		return 74
 
 	case LexemTypeCompareOrder:
