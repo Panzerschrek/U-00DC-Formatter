@@ -299,96 +299,113 @@ func PrintAndSplitLexTree_r(
 	split_results := make([]SplittingResult, 0)
 
 	// Perform split at current level to give it more priority.
-	if len(nodes) > 1 {
-		// Recursively split and print this list, adding newlines in split points.
-		builder := strings.Builder{}
-
-		w := *current_line_width
-
-		// Search for the most important lexem type to use it as splitter.
-		// Ignore last node, because splitting at last node has no sense.
-		max_priority := 0
-		for _, node := range nodes[:len(nodes)-1] {
-			priority := GetLineSplitLexemPriority(&node.lexem)
-			if priority > max_priority {
-				max_priority = priority
-			}
-		}
-
-		// Split this lexems list into parts, using maximum priority lexem type.
-		// Add newline after each part.
-		last_i := 0
-		next_indentation := indentation
-		for i := 0; i < len(nodes)-1; i++ {
-
-			if GetLineSplitLexemPriority(&nodes[i].lexem) == max_priority {
-
-				PrintAndSplitLexTree_r(nodes[last_i:i+1], options, &builder, next_indentation, &w)
-				last_i = i + 1
-
-				next_indentation = indentation + 1
-
-				builder.WriteString(options.line_end_sequence)
-				for i := uint(0); i < next_indentation; i++ {
-					builder.WriteString(options.indentation_sequence)
-				}
-				w = CountIndentationsSize(next_indentation, options)
-			}
-		}
-
-		// Process last segment specially.
-		PrintAndSplitLexTree_r(nodes[last_i:], options, &builder, next_indentation, &w)
-
-		split_results = append(split_results, SplittingResult{current_line_width: w, text: builder.String()})
+	current_level_split_result := SplitNodeListAtCurrentLevel(nodes, options, indentation, *current_line_width)
+	if current_level_split_result != nil {
+		split_results = append(split_results, *current_level_split_result)
 	}
 
-	// Print all in single line and perform recursive splits if necessary.
-	{
-		builder := strings.Builder{}
-
-		w := *current_line_width
-
-		for i, node := range nodes {
-
-			if node.sub_elements == nil {
-
-				if i > 0 && WhitespaceIsNeeded(&nodes[i-1].lexem, &node.lexem) {
-					builder.WriteString(" ")
-					w++
-				}
-
-				builder.WriteString(node.lexem.text)
-				w += uint(len(node.lexem.text))
-
-			} else {
-
-				builder.WriteString(node.lexem.text)
-				w += uint(len(node.lexem.text))
-
-				if len(node.sub_elements) > 0 {
-					builder.WriteString(" ")
-					w++
-				}
-
-				PrintAndSplitLexTree_r(
-					node.sub_elements, options, &builder, indentation, &w)
-
-				if len(node.sub_elements) > 0 {
-					builder.WriteString(" ")
-					w++
-				}
-
-				builder.WriteString(node.trailing_lexem.text)
-				w += uint(len(node.trailing_lexem.text))
-			}
-		}
-
-		split_results = append(split_results, SplittingResult{current_line_width: w, text: builder.String()})
-	}
+	further_level_split_result := PrintAndSplitNodeListAtFurtherLevels(nodes, options, indentation, *current_line_width)
+	split_results = append(split_results, further_level_split_result)
 
 	best_result := ChooseBestSplitResult(split_results, *current_line_width, options)
 	out.WriteString(best_result.text)
 	*current_line_width = best_result.current_line_width
+}
+
+func SplitNodeListAtCurrentLevel(
+	nodes LexTreeNodeList,
+	options *FormattingOptions,
+	indentation uint,
+	current_line_width uint) *SplittingResult {
+
+	if len(nodes) <= 1 {
+		return nil // Can-t split single node.
+	}
+
+	// Recursively split and print this list, adding newlines in split points.
+	builder := strings.Builder{}
+
+	// Search for the most important lexem type to use it as splitter.
+	// Ignore last node, because splitting at last node has no sense.
+	max_priority := 0
+	for _, node := range nodes[:len(nodes)-1] {
+		priority := GetLineSplitLexemPriority(&node.lexem)
+		if priority > max_priority {
+			max_priority = priority
+		}
+	}
+
+	// Split this lexems list into parts, using maximum priority lexem type.
+	// Add newline after each part.
+	last_i := 0
+	next_indentation := indentation
+	for i := 0; i < len(nodes)-1; i++ {
+
+		if GetLineSplitLexemPriority(&nodes[i].lexem) == max_priority {
+
+			PrintAndSplitLexTree_r(nodes[last_i:i+1], options, &builder, next_indentation, &current_line_width)
+			last_i = i + 1
+
+			next_indentation = indentation + 1
+
+			builder.WriteString(options.line_end_sequence)
+			for i := uint(0); i < next_indentation; i++ {
+				builder.WriteString(options.indentation_sequence)
+			}
+			current_line_width = CountIndentationsSize(next_indentation, options)
+		}
+	}
+
+	// Process last segment specially.
+	PrintAndSplitLexTree_r(nodes[last_i:], options, &builder, next_indentation, &current_line_width)
+
+	return &SplittingResult{current_line_width: current_line_width, text: builder.String()}
+}
+
+func PrintAndSplitNodeListAtFurtherLevels(
+	nodes LexTreeNodeList,
+	options *FormattingOptions,
+	indentation uint,
+	current_line_width uint) SplittingResult {
+
+	builder := strings.Builder{}
+
+	for i, node := range nodes {
+
+		if node.sub_elements == nil {
+
+			if i > 0 && WhitespaceIsNeeded(&nodes[i-1].lexem, &node.lexem) {
+				builder.WriteString(" ")
+				current_line_width++
+			}
+
+			builder.WriteString(node.lexem.text)
+			current_line_width += uint(len(node.lexem.text))
+
+		} else {
+
+			builder.WriteString(node.lexem.text)
+			current_line_width += uint(len(node.lexem.text))
+
+			if len(node.sub_elements) > 0 {
+				builder.WriteString(" ")
+				current_line_width++
+			}
+
+			PrintAndSplitLexTree_r(
+				node.sub_elements, options, &builder, indentation, &current_line_width)
+
+			if len(node.sub_elements) > 0 {
+				builder.WriteString(" ")
+				current_line_width++
+			}
+
+			builder.WriteString(node.trailing_lexem.text)
+			current_line_width += uint(len(node.trailing_lexem.text))
+		}
+	}
+
+	return SplittingResult{current_line_width: current_line_width, text: builder.String()}
 }
 
 type SplittingResult struct {
