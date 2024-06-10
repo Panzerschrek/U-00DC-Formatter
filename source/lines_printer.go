@@ -296,57 +296,14 @@ func PrintAndSplitLexTree_r(
 	indentation uint,
 	current_line_width *uint) {
 
-	text_with_further_split := ""
-	further_split_current_line_width := *current_line_width
+	split_results := make([]SplittingResult, 0)
 
-	{
-		builder := strings.Builder{}
-
-		for i, node := range nodes {
-
-			if node.sub_elements == nil {
-
-				if i > 0 && WhitespaceIsNeeded(&nodes[i-1].lexem, &node.lexem) {
-					builder.WriteString(" ")
-					further_split_current_line_width++
-				}
-
-				builder.WriteString(node.lexem.text)
-				further_split_current_line_width += uint(len(node.lexem.text))
-
-			} else {
-
-				builder.WriteString(node.lexem.text)
-				further_split_current_line_width += uint(len(node.lexem.text))
-
-				if len(node.sub_elements) > 0 {
-					builder.WriteString(" ")
-					further_split_current_line_width++
-				}
-
-				PrintAndSplitLexTree_r(
-					node.sub_elements, options, &builder, indentation, &further_split_current_line_width)
-
-				if len(node.sub_elements) > 0 {
-					builder.WriteString(" ")
-					further_split_current_line_width++
-				}
-
-				builder.WriteString(node.trailing_lexem.text)
-				further_split_current_line_width += uint(len(node.trailing_lexem.text))
-			}
-		}
-
-		text_with_further_split = builder.String()
-	}
-
-	text_with_current_split := ""
-	current_split_current_line_width := *current_line_width
-
-	// Perform split only if further split fails to achieve target line width.
+	// Perform split at current level to give it more priority.
 	if len(nodes) > 1 {
 		// Recursively split and print this list, adding newlines in split points.
 		builder := strings.Builder{}
+
+		w := *current_line_width
 
 		// Search for the most important lexem type to use it as splitter.
 		// Ignore last node, because splitting at last node has no sense.
@@ -366,8 +323,7 @@ func PrintAndSplitLexTree_r(
 
 			if GetLineSplitLexemPriority(&nodes[i].lexem) == max_priority {
 
-				PrintAndSplitLexTree_r(
-					nodes[last_i:i+1], options, &builder, next_indentation, &current_split_current_line_width)
+				PrintAndSplitLexTree_r(nodes[last_i:i+1], options, &builder, next_indentation, &w)
 				last_i = i + 1
 
 				next_indentation = indentation + 1
@@ -376,55 +332,145 @@ func PrintAndSplitLexTree_r(
 				for i := uint(0); i < next_indentation; i++ {
 					builder.WriteString(options.indentation_sequence)
 				}
-				current_split_current_line_width = CountIndentationsSize(next_indentation, options)
+				w = CountIndentationsSize(next_indentation, options)
 			}
 		}
 
 		// Process last segment specially.
-		PrintAndSplitLexTree_r(
-			nodes[last_i:], options, &builder, next_indentation, &current_split_current_line_width)
+		PrintAndSplitLexTree_r(nodes[last_i:], options, &builder, next_indentation, &w)
 
-		text_with_current_split = builder.String()
+		split_results = append(split_results, SplittingResult{current_line_width: w, text: builder.String()})
 	}
 
-	if len(text_with_current_split) == 0 {
-		// Can't split at this level - use recursive split result.
-		out.WriteString(text_with_further_split)
-		*current_line_width = further_split_current_line_width
-	} else if CountNewlines(text_with_current_split) <= CountNewlines(text_with_further_split) {
-		// Split at this level gives less or equal lines compared to splits at further levels.
-		out.WriteString(text_with_current_split)
-		*current_line_width = current_split_current_line_width
-	} else {
+	// Print all in single line and perform recursive splits if necessary.
+	{
+		builder := strings.Builder{}
 
-		// Count max line width for further split.
-		max_line_width := uint(0)
-		{
-			w := *current_line_width
+		w := *current_line_width
 
-			for _, c := range text_with_further_split {
-				if c == '\n' { // TODO - use newline sequence from options.
-					max_line_width = max(max_line_width, w)
-					w = 0
-				} else if c == '\t' {
-					w += options.tab_size
-				} else {
+		for i, node := range nodes {
+
+			if node.sub_elements == nil {
+
+				if i > 0 && WhitespaceIsNeeded(&nodes[i-1].lexem, &node.lexem) {
+					builder.WriteString(" ")
 					w++
 				}
-			}
 
-			max_line_width = max(max_line_width, w)
+				builder.WriteString(node.lexem.text)
+				w += uint(len(node.lexem.text))
+
+			} else {
+
+				builder.WriteString(node.lexem.text)
+				w += uint(len(node.lexem.text))
+
+				if len(node.sub_elements) > 0 {
+					builder.WriteString(" ")
+					w++
+				}
+
+				PrintAndSplitLexTree_r(
+					node.sub_elements, options, &builder, indentation, &w)
+
+				if len(node.sub_elements) > 0 {
+					builder.WriteString(" ")
+					w++
+				}
+
+				builder.WriteString(node.trailing_lexem.text)
+				w += uint(len(node.trailing_lexem.text))
+			}
 		}
 
-		// Split result at this level if further result exceeedes the limit.
-		if max_line_width > options.max_line_width {
-			out.WriteString(text_with_current_split)
-			*current_line_width = current_split_current_line_width
-		} else {
-			out.WriteString(text_with_further_split)
-			*current_line_width = further_split_current_line_width
+		split_results = append(split_results, SplittingResult{current_line_width: w, text: builder.String()})
+	}
+
+	best_result := ChooseBestSplitResult(split_results, *current_line_width, options)
+	out.WriteString(best_result.text)
+	*current_line_width = best_result.current_line_width
+}
+
+type SplittingResult struct {
+	current_line_width uint
+	text               string
+}
+
+// Choose best result based on number of lines.
+// If number of lines is equal, choose firs result with such number.
+func ChooseBestSplitResult(
+	results []SplittingResult, current_line_width uint, options *FormattingOptions) *SplittingResult {
+
+	if len(results) == 0 {
+		panic("No splitting results!")
+		return nil
+	}
+	if len(results) == 1 {
+		return &results[0]
+	}
+
+	type ResultStats struct {
+		num_lines                uint
+		exceeds_line_width_limit bool
+	}
+
+	stats := make([]ResultStats, len(results))
+
+	for i, r := range results {
+
+		num_newlines := uint(0)
+		max_line_width := uint(0)
+		w := current_line_width
+
+		for _, c := range r.text {
+			if c == '\n' { // TODO - use newline sequence from options.
+				max_line_width = max(max_line_width, w)
+				w = 0
+				num_newlines++
+			} else if c == '\t' {
+				w += options.tab_size
+			} else {
+				w++
+			}
+		}
+
+		max_line_width = max(max_line_width, w)
+
+		stats[i].num_lines = num_newlines
+		stats[i].exceeds_line_width_limit = max_line_width > options.max_line_width
+	}
+
+	num_results_over_line_limit := uint(0)
+	for _, s := range stats {
+		if s.exceeds_line_width_limit {
+			num_results_over_line_limit++
 		}
 	}
+
+	var res *SplittingResult = nil
+	min_num_lines := uint(1024 * 1024)
+
+	if num_results_over_line_limit < uint(len(stats)) {
+		for i, r := range results {
+			if !stats[i].exceeds_line_width_limit && stats[i].num_lines < min_num_lines {
+				min_num_lines = stats[i].num_lines
+				res = &r
+			}
+		}
+	} else {
+		// Fallback in cases where it isn't possible to split below the limit.
+		for i, r := range results {
+			if stats[i].num_lines < min_num_lines {
+				min_num_lines = stats[i].num_lines
+				res = &r
+			}
+		}
+	}
+
+	if res == nil {
+		panic("Unexpected missing result!")
+	}
+	return res
 }
 
 func CountNewlines(s string) uint {
