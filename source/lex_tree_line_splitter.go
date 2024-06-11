@@ -59,6 +59,7 @@ func SplitLexTreeIntoLines_r(nodes LexTreeNodeList, indentation uint, out *[]Log
 
 		} else {
 
+			// TODO - fix  this. Lambdas may contain semicolons, which ruins the whole primary line splitting algorithm.
 			subelements_contain_natural_newlines := HasNaturalNewlines(node.sub_elements)
 
 			if subelements_contain_natural_newlines {
