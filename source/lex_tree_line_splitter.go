@@ -22,9 +22,9 @@ func SplitLexTreeIntoLines_r(nodes LexTreeNodeList, indentation uint, out *[]Log
 	for i, node := range nodes {
 
 		if node.lexem.t != LexemTypeSemicolon && i > 0 && nodes[i-1].trailing_lexem.t == LexemTypeBraceRight {
-			// Add extra empty line after "}", except it is "else", ".".
+			// Add extra empty line after "}", except it is "else", ".", ",".
 			// This ensures that global things like classes or functions are always separated by an empty line.
-			if !(node.lexem.t == LexemTypeDot || node.lexem.text == "else") {
+			if !(node.lexem.t == LexemTypeDot || node.lexem.t == LexemTypeComma || node.lexem.text == "else") {
 				AddNewLine(out, indentation)
 				*prev_was_newline = true
 			}
