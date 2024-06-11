@@ -37,9 +37,13 @@ func PrintLines(lines []LogicalLine, options *FormattingOptions) string {
 			// Try to split this line.
 			// Build lex_tree again, but only for this line.
 			lex_tree, err := BuildLexTree(line.lexems)
-			_ = err // TODO - handle it
-			line_splitted := PrintAndSplitLexTree(lex_tree, line.indentation, options)
-			text_builder.WriteString(line_splitted)
+			if err != nil {
+				// Fallback for unlikely cases.
+				text_builder.WriteString(line_builder.String())
+			} else {
+				line_splitted := PrintAndSplitLexTree(lex_tree, line.indentation, options)
+				text_builder.WriteString(line_splitted)
+			}
 		}
 	}
 
