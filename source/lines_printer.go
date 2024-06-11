@@ -399,9 +399,9 @@ func PrintAndSplitNodeListAtFurtherLevelsImpl(
 		} else {
 
 			if node.lexem.t == LexemTypeBracketLeft {
-
 				PrintAndSplitBracketsNode(&node, options, out, indentation, current_line_width)
-
+			} else if node.lexem.t == LexemTypeBraceLeft {
+				PrintAndSplitBracesNode(&node, options, out, indentation, current_line_width)
 			} else {
 
 				out.WriteString(node.lexem.text)
@@ -527,6 +527,143 @@ func PrintAndSplitBracketsNodeAtCurrentLevel(
 }
 
 func PrintAndSplitBracketsNodeAtFurtherLevels(
+	node *LexTreeNode,
+	options *FormattingOptions,
+	indentation uint,
+	current_line_width uint) SplittingResult {
+
+	builder := strings.Builder{}
+
+	builder.WriteString(node.lexem.text)
+	current_line_width += uint(len(node.lexem.text))
+	builder.WriteString(" ")
+	current_line_width++
+
+	PrintAndSplitNodeListAtFurtherLevelsImpl(node.sub_elements, options, &builder, indentation, &current_line_width)
+
+	builder.WriteString(" ")
+	current_line_width++
+	builder.WriteString(node.trailing_lexem.text)
+	current_line_width += uint(len(node.trailing_lexem.text))
+
+	return SplittingResult{current_line_width: current_line_width, text: builder.String()}
+}
+
+func PrintAndSplitBracesNode(
+	node *LexTreeNode,
+	options *FormattingOptions,
+	out *strings.Builder,
+	indentation uint,
+	current_line_width *uint) {
+
+	if len(node.sub_elements) == 0 {
+
+		out.WriteString(node.lexem.text)
+		*current_line_width += uint(len(node.lexem.text))
+
+		out.WriteString(node.trailing_lexem.text)
+		*current_line_width += uint(len(node.trailing_lexem.text))
+
+		return
+	}
+
+	current_split_result := PrintAndSplitBracesNodeAtCurrentLevel(node, options, indentation, *current_line_width)
+	further_split_result := PrintAndSplitBracesNodeAtFurtherLevels(node, options, indentation, *current_line_width)
+
+	if len(current_split_result.text) == 0 {
+		out.WriteString(further_split_result.text)
+		*current_line_width = further_split_result.current_line_width
+		return
+	}
+
+	arr := [...]SplittingResult{current_split_result, further_split_result}
+	best_result := ChooseBestSplitResult(arr[:], *current_line_width, options)
+
+	out.WriteString(best_result.text)
+	*current_line_width = best_result.current_line_width
+}
+
+// Returns empty result in case of fail.
+func PrintAndSplitBracesNodeAtCurrentLevel(
+	node *LexTreeNode,
+	options *FormattingOptions,
+	indentation uint,
+	current_line_width uint) SplittingResult {
+
+	if len(node.sub_elements) <= 1 {
+		return SplittingResult{}
+	}
+
+	/* // For {} try to create newlines in style like this:
+		Foo
+		{
+			a,
+			b,
+			c
+		}.Some();
+	// Or something like this:
+	Foo
+		{
+			"a" +
+			"b" +
+			"c"
+		}.Some();
+	*/
+
+	// Recursively split and print this list, adding newlines before split points.
+	builder := strings.Builder{}
+
+	builder.WriteString(options.line_end_sequence)
+	for i := uint(0); i < indentation+1; i++ {
+		builder.WriteString(options.indentation_sequence)
+	}
+	current_line_width = CountIndentationsSize(indentation, options)
+
+	builder.WriteString(node.lexem.text)
+	current_line_width += uint(len(node.lexem.text))
+
+	// Search for the most important lexem type to use it as splitter.
+	// Ignore last node, because splitting at last node has no sense.
+	max_priority := 0
+	for _, node := range node.sub_elements[:len(node.sub_elements)-1] {
+		priority := GetLineSplitLexemPriority(&node.lexem)
+		if priority > max_priority {
+			max_priority = priority
+		}
+	}
+
+	// Split this lexems list into parts, using maximum priority lexem type.
+	// Add newline befpre each part.
+	last_i := 0
+	for i := 0; i < len(node.sub_elements); i++ {
+
+		if GetLineSplitLexemPriority(&node.sub_elements[i].lexem) == max_priority ||
+			i+1 == len(node.sub_elements) {
+
+			builder.WriteString(options.line_end_sequence)
+			for i := uint(0); i < indentation+2; i++ {
+				builder.WriteString(options.indentation_sequence)
+			}
+			current_line_width = CountIndentationsSize(indentation+1, options)
+
+			PrintAndSplitLexTree_r(node.sub_elements[last_i:i+1], options, &builder, indentation+2, &current_line_width)
+			last_i = i + 1
+		}
+	}
+
+	builder.WriteString(options.line_end_sequence)
+	for i := uint(0); i < indentation+1; i++ {
+		builder.WriteString(options.indentation_sequence)
+	}
+	current_line_width = CountIndentationsSize(indentation, options)
+
+	builder.WriteString(node.trailing_lexem.text)
+	current_line_width += uint(len(node.trailing_lexem.text))
+
+	return SplittingResult{current_line_width: current_line_width, text: builder.String()}
+}
+
+func PrintAndSplitBracesNodeAtFurtherLevels(
 	node *LexTreeNode,
 	options *FormattingOptions,
 	indentation uint,
